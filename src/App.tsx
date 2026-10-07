@@ -275,7 +275,7 @@ export function App() {
       <footer className="no-print mt-auto border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 space-y-1">
           <p className="font-semibold text-slate-700">
-            NaijaLessonPlan • Designed for Nigerian Primary & Secondary Educators
+            LessonFlow • Inspection-Ready Lesson Notes for Nigerian Schools (by EduFlows)
           </p>
           <p className="text-[11px] text-slate-400">
             Aligned with the pedagogical structure of the NERDC Basic Education Curriculum (BEC) &amp; Senior Secondary Education Curriculum (SSEC). Independent educational planning tool; not officially affiliated with or endorsed by NERDC or SUBEB.

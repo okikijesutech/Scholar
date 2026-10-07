@@ -32,13 +32,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-slate-900 tracking-tight text-base sm:text-lg">
-                  NaijaLesson<span className="text-emerald-700">Plan</span>
+                  Lesson<span className="text-emerald-700">Flow</span>
                 </span>
                 <span className="hidden lg:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
                   NERDC Standard
                 </span>
               </div>
-              <p className="hidden md:block text-[11px] text-slate-500 font-medium">Primary & Secondary School Lesson Note Generator</p>
+              <p className="hidden md:block text-[11px] text-slate-500 font-medium">Inspection-Ready Lesson Notes for Nigerian Schools</p>
             </div>
           </div>
 

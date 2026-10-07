@@ -1,5 +1,6 @@
 import type { LessonNote, TeacherProfile, SchemeOfWork } from '../types';
 import { SAMPLE_LESSON_NOTES } from '../data/sampleNotes';
+import { lessonNoteSchema, schemeOfWorkSchema } from '../schemas';
 
 const STORAGE_KEY_NOTES = 'naija_lesson_notes_v1';
 const STORAGE_KEY_SEEDED = 'naija_notes_seeded_v1';
@@ -13,19 +14,12 @@ export interface StorageResult {
 
 export function isValidLessonNote(item: unknown): item is LessonNote {
   if (!item || typeof item !== 'object') return false;
-  const n = item as Record<string, unknown>;
-  return (
-    typeof n.id === 'string' &&
-    typeof n.topic === 'string' &&
-    typeof n.subject === 'string' &&
-    typeof n.classLevel === 'string' &&
-    typeof n.term === 'string' &&
-    typeof n.week === 'number' &&
-    Array.isArray(n.contentSections) &&
-    Array.isArray(n.classroomActivities) &&
-    Array.isArray(n.steps) &&
-    Array.isArray(n.evaluation)
-  );
+  return lessonNoteSchema.safeParse(item).success;
+}
+
+export function isValidSchemeOfWork(item: unknown): item is SchemeOfWork {
+  if (!item || typeof item !== 'object') return false;
+  return schemeOfWorkSchema.safeParse(item).success;
 }
 
 export function getStoredNotes(): LessonNote[] {

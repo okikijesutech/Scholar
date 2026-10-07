@@ -1,10 +1,6 @@
 import type { ContentSection, ClassroomActivity } from '../../types';
 import { categorizeSubject } from './subjectCategories';
-import type { TopicKnowledgeModule } from './topics/types';
-import { fractionTopic, rectangleGeometryTopic } from './topics/mathTopics';
-import { habitatTopic } from './topics/scienceTopics';
-import { adjectiveTopic } from './topics/languageTopics';
-import { temptationTopic } from './topics/religiousTopics';
+import { findCuratedTopic } from '../../data/curriculumLibrary';
 import {
   generateSkeletonContentSections,
   generateSkeletonClassroomActivities,
@@ -12,26 +8,14 @@ import {
   generateSkeletonCoreRule
 } from './topics/skeletonGenerator';
 
-const TOPIC_REGISTRY: TopicKnowledgeModule[] = [
-  fractionTopic,
-  rectangleGeometryTopic,
-  habitatTopic,
-  adjectiveTopic,
-  temptationTopic
-];
-
-function findMatchingTopic(subject: string, topic: string, subTopic: string): TopicKnowledgeModule | undefined {
-  return TOPIC_REGISTRY.find(mod => mod.matches(subject, topic, subTopic));
-}
-
 export function generateSubjectSpecificContentSections(
   subject: string,
   topic: string,
   subTopic: string
 ): ContentSection[] {
-  const match = findMatchingTopic(subject, topic, subTopic);
+  const match = findCuratedTopic(subject, topic, subTopic);
   if (match) {
-    return match.getContentSections(subject, topic, subTopic);
+    return match.contentSections;
   }
   return generateSkeletonContentSections(subject, topic, subTopic);
 }
@@ -41,9 +25,9 @@ export function generateSubjectSpecificClassroomActivities(
   topic: string,
   subTopic: string
 ): ClassroomActivity[] {
-  const match = findMatchingTopic(subject, topic, subTopic);
+  const match = findCuratedTopic(subject, topic, subTopic);
   if (match) {
-    return match.getClassroomActivities(subject, topic, subTopic);
+    return match.classroomActivities;
   }
   return generateSkeletonClassroomActivities(subject, topic, subTopic);
 }
@@ -53,17 +37,17 @@ export function generateSubjectSpecificEvaluation(
   topic: string,
   subTopic: string
 ): string[] {
-  const match = findMatchingTopic(subject, topic, subTopic);
+  const match = findCuratedTopic(subject, topic, subTopic);
   if (match) {
-    return match.getEvaluation(subject, topic, subTopic);
+    return match.evaluation;
   }
   return generateSkeletonEvaluation(subject, topic, subTopic);
 }
 
 export function generateSubjectSpecificCoreRule(subject: string, topic: string): string {
-  const match = findMatchingTopic(subject, topic, topic);
+  const match = findCuratedTopic(subject, topic, topic);
   if (match) {
-    return match.getCoreRule();
+    return match.coreRule;
   }
   const category = categorizeSubject(subject);
   return generateSkeletonCoreRule(category, subject, topic);

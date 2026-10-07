@@ -1,14 +1,14 @@
-# NaijaLessonPlan 🇳🇬
-### Inspection-Ready Lesson Note & Educational Content Generator for Nigerian Schools
+# LessonFlow 🇳🇬
+### Inspection-Ready Lesson Note & Educational Content Generator for Nigerian Schools (by EduFlows)
 
-**NaijaLessonPlan** is a specialized curriculum and lesson planning web tool designed specifically for Nigerian educators across:
+**LessonFlow** is a specialized curriculum and lesson planning web tool designed specifically for Nigerian educators across:
 - **Primary Education:** Basic 1 to 6 (Primary 1–6)
 - **Junior Secondary Education:** Basic 7 to 9 (JSS 1–3)
 - **Senior Secondary Education:** Senior Secondary 1 to 3 (SSS 1–3)
 
 Aligned with the pedagogical structure of the **NERDC (Nigerian Educational Research and Development Council)** curriculum standards and the official inspection format mandated by State Universal Basic Education Boards (**SUBEB**) and the Federal Ministry of Education.
 
-> **Note:** *NaijaLessonPlan is an independent educational planning tool designed to support teachers. It is not officially affiliated with or endorsed by NERDC or SUBEB.*
+> **Note:** *LessonFlow is an independent educational planning tool designed to support teachers. It is not officially affiliated with or endorsed by NERDC or SUBEB.*
 
 ---
 
