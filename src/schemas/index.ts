@@ -139,3 +139,36 @@ export const sectionFeedbackSchema = z.object({
 
 export type FeedbackReason = z.infer<typeof feedbackReasonSchema>;
 export type SectionFeedback = z.infer<typeof sectionFeedbackSchema>;
+
+export const quizOptionSchema = z.enum(['A', 'B', 'C', 'D']);
+
+export const quizQuestionSchema = z.object({
+  questionNumber: z.number(),
+  question: z.string(),
+  options: z.object({
+    A: z.string(),
+    B: z.string(),
+    C: z.string(),
+    D: z.string()
+  }),
+  correctOption: quizOptionSchema,
+  explanation: z.string()
+});
+
+export const studentPackSchema = z.object({
+  id: z.string(),
+  noteId: z.string(),
+  subject: z.string(),
+  classLevel: z.string(),
+  topic: z.string(),
+  subTopic: z.string().default(''),
+  summaryPoints: z.array(z.string()).default([]),
+  coreRuleOrMemoryVerse: z.string().optional(),
+  quizQuestions: z.array(quizQuestionSchema).default([]),
+  teacherName: z.string().default(''),
+  schoolName: z.string().default(''),
+  createdAt: z.string().default(() => new Date().toISOString())
+});
+
+export type QuizQuestion = z.infer<typeof quizQuestionSchema>;
+export type StudentPack = z.infer<typeof studentPackSchema>;

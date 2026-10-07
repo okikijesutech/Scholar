@@ -7,13 +7,15 @@ import {
   Edit3, 
   Check, 
   Eye,
-  Sparkles
+  Sparkles,
+  Share2
 } from 'lucide-react';
 
 interface LessonActionBarProps {
   isEditing: boolean;
   onToggleEdit: () => void;
   onOpenRefine?: () => void;
+  onOpenStudentPack?: () => void;
   onPrint: () => void;
   onExportDocx: () => void;
   isExportingDocx: boolean;
@@ -27,6 +29,7 @@ export const LessonActionBar: React.FC<LessonActionBarProps> = ({
   isEditing,
   onToggleEdit,
   onOpenRefine,
+  onOpenStudentPack,
   onPrint,
   onExportDocx,
   isExportingDocx,
@@ -56,6 +59,16 @@ export const LessonActionBar: React.FC<LessonActionBarProps> = ({
           >
             <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
             <span>Refine with AI</span>
+          </button>
+        )}
+
+        {onOpenStudentPack && (
+          <button
+            onClick={onOpenStudentPack}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-100 transition cursor-pointer"
+          >
+            <Share2 className="w-3.5 h-3.5 text-teal-600" />
+            <span>Student Pack &amp; Quiz</span>
           </button>
         )}
       </div>

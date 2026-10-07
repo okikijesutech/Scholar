@@ -4,6 +4,7 @@ import { exportToDocx, formatAsPlainText } from '../services/exportService';
 import { LessonActionBar } from './preview/LessonActionBar';
 import { InspectionSheet } from './preview/InspectionSheet';
 import { RefineNoteModal } from './preview/RefineNoteModal';
+import { StudentPackModal } from './preview/StudentPackModal';
 import { BookOpen, Sparkles } from 'lucide-react';
 
 interface LessonPreviewTabProps {
@@ -24,6 +25,7 @@ export const LessonPreviewTab: React.FC<LessonPreviewTabProps> = ({
   const [note, setNote] = useState<LessonNote | null>(initialNote);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isRefineModalOpen, setIsRefineModalOpen] = useState<boolean>(false);
+  const [isStudentPackOpen, setIsStudentPackOpen] = useState<boolean>(false);
   const [copiedSuccess, setCopiedSuccess] = useState<boolean>(false);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [isExportingDocx, setIsExportingDocx] = useState<boolean>(false);
@@ -92,6 +94,7 @@ export const LessonPreviewTab: React.FC<LessonPreviewTabProps> = ({
         isEditing={isEditing}
         onToggleEdit={() => setIsEditing(!isEditing)}
         onOpenRefine={() => setIsRefineModalOpen(true)}
+        onOpenStudentPack={() => setIsStudentPackOpen(true)}
         onPrint={handlePrint}
         onExportDocx={handleExportDocx}
         isExportingDocx={isExportingDocx}
@@ -117,6 +120,12 @@ export const LessonPreviewTab: React.FC<LessonPreviewTabProps> = ({
         }}
         profile={profile}
         onOpenSettings={onOpenSettings}
+      />
+
+      <StudentPackModal
+        isOpen={isStudentPackOpen}
+        onClose={() => setIsStudentPackOpen(false)}
+        note={note}
       />
     </div>
   );
