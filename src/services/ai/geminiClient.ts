@@ -10,6 +10,11 @@ import {
   generateDefaultSteps
 } from '../templates/subjectKnowledgeBase';
 
+interface GeminiModelEntry {
+  name: string;
+  supportedGenerationMethods?: string[];
+}
+
 let cachedModelName: string | null = null;
 
 // Dynamically discover which Gemini model is active and available for the user's API key
@@ -17,10 +22,14 @@ export async function resolveGeminiModel(apiKey: string): Promise<string> {
   if (cachedModelName) return cachedModelName;
 
   try {
-    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    const listRes = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+      headers: {
+        'x-goog-api-key': apiKey
+      }
+    });
     if (listRes.ok) {
       const data = await listRes.json();
-      const models = data.models || [];
+      const models: GeminiModelEntry[] = data.models || [];
 
       const priorityOrder = [
         'gemini-2.5-flash',
@@ -35,7 +44,7 @@ export async function resolveGeminiModel(apiKey: string): Promise<string> {
       ];
 
       for (const target of priorityOrder) {
-        const found = models.find((m: any) =>
+        const found = models.find(m =>
           m.name === `models/${target}` &&
           (m.supportedGenerationMethods?.includes('generateContent') || !m.supportedGenerationMethods)
         );
@@ -46,7 +55,7 @@ export async function resolveGeminiModel(apiKey: string): Promise<string> {
       }
 
       // If priority didn't match, pick any model supporting generateContent
-      const candidate = models.find((m: any) =>
+      const candidate = models.find(m =>
         (m.supportedGenerationMethods?.includes('generateContent') || !m.supportedGenerationMethods) &&
         !m.name.includes('embedding')
       );
@@ -173,10 +182,13 @@ Respond strictly with valid JSON conforming to this schema (no markdown formatti
 
   for (const model of candidateModels) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey
+        },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
@@ -197,8 +209,8 @@ Respond strictly with valid JSON conforming to this schema (no markdown formatti
         const errorText = await response.text();
         lastError = new Error(`Gemini API (${model}) Error ${response.status}: ${errorText}`);
       }
-    } catch (e: any) {
-      lastError = e;
+    } catch (e: unknown) {
+      lastError = e instanceof Error ? e : new Error(String(e));
     }
   }
 
@@ -206,9 +218,8 @@ Respond strictly with valid JSON conforming to this schema (no markdown formatti
     throw lastError || new Error('No content returned from Gemini API');
   }
 
-  // Clean any backticks if returned
-  const cleanedJson = textOutput.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-  const parsed = JSON.parse(cleanedJson);
+  // Safe JSON extraction with fallback for wrapped responses
+  const parsed = parseGeminiResponse(textOutput);
 
   return {
     id: `note-${Date.now()}`,
@@ -252,3 +263,24 @@ Respond strictly with valid JSON conforming to this schema (no markdown formatti
     updatedAt: new Date().toISOString()
   };
 }
+
+function parseGeminiResponse(rawText: string): Record<string, any> {
+  const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (parsed && typeof parsed === 'object') return parsed;
+  } catch {
+    // Attempt to extract the outermost JSON object if model returned chat commentary
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        const extracted = JSON.parse(match[0]);
+        if (extracted && typeof extracted === 'object') return extracted;
+      } catch {
+        // Fall through
+      }
+    }
+  }
+  throw new Error('Gemini API returned an unparseable response. Please retry generation.');
+}
+

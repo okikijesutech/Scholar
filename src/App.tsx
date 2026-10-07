@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import confetti from 'canvas-confetti';
 import type { TabType } from './components/Navbar';
 import { Navbar } from './components/Navbar';
@@ -10,6 +10,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { SchemeImportModal } from './components/SchemeImportModal';
 import type { LessonNote, TeacherProfile, ClassLevel, Term, SchemeOfWork, GenerationParams } from './types';
 import { generateLessonNote } from './services/aiGenerator';
+import { resolveActiveProviderConfig } from './services/ai/providers';
 import { 
   getStoredNotes, 
   saveNote, 
@@ -25,10 +26,13 @@ import { SAMPLE_LESSON_NOTES } from './data/sampleNotes';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<TabType>('generator');
-  const [notes, setNotes] = useState<LessonNote[]>([]);
-  const [activeNote, setActiveNote] = useState<LessonNote | null>(null);
-  const [profile, setProfile] = useState<TeacherProfile>(getTeacherProfile());
-  const [customSchemes, setCustomSchemes] = useState<SchemeOfWork[]>([]);
+  const [notes, setNotes] = useState<LessonNote[]>(() => getStoredNotes());
+  const [activeNote, setActiveNote] = useState<LessonNote | null>(() => {
+    const loadedNotes = getStoredNotes();
+    return loadedNotes.length > 0 ? loadedNotes[0] : null;
+  });
+  const [profile, setProfile] = useState<TeacherProfile>(() => getTeacherProfile());
+  const [customSchemes, setCustomSchemes] = useState<SchemeOfWork[]>(() => getCustomSchemes());
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -37,16 +41,6 @@ export function App() {
     subject?: string;
     term?: Term;
   }>({});
-
-  // Initialize data on mount
-  useEffect(() => {
-    const loadedNotes = getStoredNotes();
-    setNotes(loadedNotes);
-    if (loadedNotes.length > 0) {
-      setActiveNote(loadedNotes[0]);
-    }
-    setCustomSchemes(getCustomSchemes());
-  }, []);
 
   const handleOpenImportModal = (classLevel?: ClassLevel, subject?: string, term?: Term) => {
     setImportModalParams({ classLevel, subject, term });
@@ -60,7 +54,10 @@ export function App() {
       const generated = await generateLessonNote(params);
       
       // Save and set active
-      saveNote(generated);
+      const saveRes = saveNote(generated);
+      if (!saveRes.success) {
+        console.warn('Note generated but failed to persist to local storage:', saveRes.error);
+      }
       const updatedNotes = getStoredNotes();
       setNotes(updatedNotes);
       setActiveNote(generated);
@@ -72,7 +69,7 @@ export function App() {
           spread: 60,
           origin: { y: 0.7 }
         });
-      } catch (e) {
+      } catch {
         // Confetti fallback
       }
 
@@ -102,8 +99,17 @@ export function App() {
     term: Term,
     week: number,
     topic: string,
-    subTopic: string
+    subTopic: string,
+    objectivesSummary?: string,
+    suggestedMaterials?: string
   ) => {
+    const providerConfig = resolveActiveProviderConfig(profile);
+    const customInstructions = [
+      objectivesSummary ? `Specific Syllabus Objectives: ${objectivesSummary}` : '',
+      suggestedMaterials ? `Prescribed Teaching Aids / Materials: ${suggestedMaterials}` : '',
+      'Strictly ground lesson content in these captured syllabus objectives and teaching aids.'
+    ].filter(Boolean).join('\n');
+
     await handleGenerate({
       schoolName: profile.schoolName,
       teacherName: profile.teacherName,
@@ -115,19 +121,29 @@ export function App() {
       subTopic,
       duration: profile.defaultDuration || '40 Minutes',
       period: '1st & 2nd Period',
-      customInstructions: 'Aligned with official scheme of work',
-      apiKey: profile.geminiApiKey
+      customInstructions,
+      apiKey: providerConfig.apiKey,
+      providerConfig
     });
   };
 
-  const handleSaveNote = (noteToSave: LessonNote) => {
-    saveNote(noteToSave);
+  const handleSaveNote = (noteToSave: LessonNote): boolean => {
+    const res = saveNote(noteToSave);
+    if (!res.success) {
+      alert(`Could not save lesson note: ${res.error || 'Storage quota exceeded or storage unavailable.'}`);
+      return false;
+    }
     setActiveNote(noteToSave);
     setNotes(getStoredNotes());
+    return true;
   };
 
   const handleDuplicateNote = (noteToDup: LessonNote) => {
     const duplicated = duplicateNote(noteToDup);
+    if (!duplicated) {
+      alert('Could not duplicate note: browser storage is full or unavailable.');
+      return;
+    }
     setNotes(getStoredNotes());
     setActiveNote(duplicated);
     setActiveTab('preview');
@@ -155,7 +171,7 @@ export function App() {
         spread: 70,
         origin: { y: 0.6 }
       });
-    } catch (e) {
+    } catch {
       // Confetti fallback
     }
     setActiveTab('scheme');
@@ -198,14 +214,27 @@ export function App() {
             customSchemes={customSchemes}
             onOpenImportModal={handleOpenImportModal}
             onDeleteCustomScheme={handleDeleteCustomScheme}
+            profile={profile}
+            onBatchComplete={newNotes => {
+              const updated = getStoredNotes();
+              setNotes(updated);
+              if (newNotes.length > 0) {
+                setActiveNote(newNotes[0]);
+                setActiveTab('library');
+              }
+            }}
+            onOpenSettings={() => setIsSettingsOpen(true)}
           />
         )}
 
         {activeTab === 'preview' && (
           <LessonPreviewTab
+            key={activeNote?.id ?? 'empty'}
             note={activeNote}
             onSaveNote={handleSaveNote}
             onNewNote={handleNewNote}
+            profile={profile}
+            onOpenSettings={() => setIsSettingsOpen(true)}
           />
         )}
 
@@ -239,16 +268,17 @@ export function App() {
         initialClassLevel={importModalParams.classLevel}
         initialSubject={importModalParams.subject}
         initialTerm={importModalParams.term}
+        existingSchemes={customSchemes}
       />
 
       {/* Footer (Hidden during printing) */}
       <footer className="no-print mt-auto border-t border-slate-200 bg-white py-6 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 space-y-1">
           <p className="font-semibold text-slate-700">
-            NaijaLessonPlan • Designed for Nigerian Primary & Secondary Educators
+            LessonFlow • Inspection-Ready Lesson Notes for Nigerian Schools (by EduFlows)
           </p>
           <p className="text-[11px] text-slate-400">
-            Compliant with NERDC Basic Education Curriculum (BEC) & Senior Secondary Education Curriculum (SSEC).
+            Aligned with the pedagogical structure of the NERDC Basic Education Curriculum (BEC) &amp; Senior Secondary Education Curriculum (SSEC). Independent educational planning tool; not officially affiliated with or endorsed by NERDC or SUBEB.
           </p>
         </div>
       </footer>

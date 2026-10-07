@@ -1,60 +1,110 @@
-import type { SchemeOfWork, SchemeWeek, ClassLevel, Term } from '../types';
-import { resolveGeminiModel } from './ai/geminiClient';
+import type { SchemeOfWork, SchemeWeek, ClassLevel, Term, AIProviderConfig } from '../types';
+import { getProvider } from './ai/providers';
+import { resizeImageForVision, fileToBase64 } from '../utils/imageUtils';
 
 export interface ExtractionResult {
   scheme: SchemeOfWork;
   previewUrl?: string;
   sourceFileName: string;
+  originalSizeBytes: number;
+  optimizedSizeBytes: number;
 }
 
-// Convert a File object to base64 string
-export function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      const result = reader.result as string;
-      // Strip data:mime/type;base64, prefix
-      const base64Data = result.split(',')[1] || '';
-      resolve(base64Data);
-    };
-    reader.onerror = error => reject(error);
-  });
+/**
+ * Merges two sets of scheme weeks by week number.
+ * Allows capturing multi-page spreads (e.g. Weeks 1-6 from Page 1, Weeks 7-12 from Page 2)
+ * without losing previously captured weeks.
+ */
+export function mergeSchemeWeeks(
+  existingWeeks: SchemeWeek[],
+  incomingWeeks: SchemeWeek[],
+  overwriteExisting = true
+): SchemeWeek[] {
+  const weekMap = new Map<number, SchemeWeek>();
+
+  for (const w of existingWeeks) {
+    weekMap.set(w.week, { ...w });
+  }
+
+  for (const w of incomingWeeks) {
+    if (!weekMap.has(w.week) || overwriteExisting) {
+      weekMap.set(w.week, { ...w });
+    } else {
+      const current = weekMap.get(w.week)!;
+      weekMap.set(w.week, {
+        week: w.week,
+        topic: w.topic || current.topic,
+        subTopic: w.subTopic || current.subTopic,
+        objectivesSummary: w.objectivesSummary || current.objectivesSummary,
+        suggestedMaterials: w.suggestedMaterials || current.suggestedMaterials
+      });
+    }
+  }
+
+  return Array.from(weekMap.values()).sort((a, b) => a.week - b.week);
 }
 
-// Extract Scheme of Work from an image or PDF using Gemini Multimodal Vision API
+/**
+ * Extract Scheme of Work from an image or PDF using Vision LLMs
+ * Resizes phone snapshots down to ~1500px in-browser to prevent upload limits and latency.
+ */
 export async function extractSchemeFromDocument(
   file: File,
   fallbackClass: ClassLevel,
   fallbackSubject: string,
   fallbackTerm: Term,
-  apiKey?: string
+  providerConfig?: AIProviderConfig,
+  apiKeyFallback?: string
 ): Promise<ExtractionResult> {
-  if (!apiKey || apiKey.trim().length < 10) {
-    throw new Error('A Google Gemini API key is required to scan and extract Schemes of Work from PDFs or images. Please add your free Gemini API key in Settings.');
+  const config: AIProviderConfig = providerConfig || {
+    provider: 'gemini',
+    apiKey: apiKeyFallback || ''
+  };
+
+  if (!config.apiKey || config.apiKey.trim().length < 5) {
+    throw new Error(
+      `An API key is required to scan syllabus books with ${config.provider.toUpperCase()}. Please configure your key in Settings.`
+    );
   }
 
-  const base64Data = await fileToBase64(file);
-  const mimeType = file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg');
+  let base64Data: string;
+  let mimeType: string;
+  let originalSizeBytes = file.size;
+  let optimizedSizeBytes = file.size;
 
-  const prompt = `
-You are an expert Nigerian curriculum document parser for SUBEB, WAEC, and the Federal Ministry of Education.
-Extract the 10-to-12 week Scheme of Work from this uploaded ${mimeType === 'application/pdf' ? 'PDF document' : 'image of a printed/handwritten syllabus'}.
+  if (file.type.startsWith('image/')) {
+    const optimized = await resizeImageForVision(file, 1500, 0.85);
+    base64Data = optimized.base64;
+    mimeType = optimized.mimeType;
+    originalSizeBytes = optimized.originalSizeBytes;
+    optimizedSizeBytes = optimized.optimizedSizeBytes;
+  } else {
+    // Non-image e.g. application/pdf
+    const direct = await fileToBase64(file);
+    base64Data = direct.base64;
+    mimeType = direct.mimeType;
+  }
 
-Target Subject if detectable: ${fallbackSubject}
-Target Class if detectable: ${fallbackClass}
-Target Term if detectable: ${fallbackTerm}
+  const systemPrompt = `You are an expert Nigerian educational supervisor and syllabus document parser for SUBEB and WAEC.
+Your job is to read pictures or documents of Nigerian Schemes of Work and extract the exact weekly curriculum structure.
+Extract only what is actually printed or handwritten on the document. Do not invent or hallucinate topics not present.
+Respond strictly with pure valid JSON.`;
 
-Your task:
-1. Identify the Subject, Class Level (e.g. Primary 1-6, JSS 1-3, SSS 1-3), and Term (1st, 2nd, or 3rd Term).
-2. For each week found in the document (typically Week 1 to Week 12), extract:
+  const prompt = `Extract the weekly Scheme of Work from this uploaded syllabus document.
+Target Subject if detectable: "${fallbackSubject}"
+Target Class if detectable: "${fallbackClass}"
+Target Term if detectable: "${fallbackTerm}"
+
+Instructions:
+1. Identify the Subject, Class Level (Primary 1-6, JSS 1-3, SSS 1-3), and Term (1st, 2nd, or 3rd Term).
+2. For every week found in the document, extract:
    - "week": number (1 to 12)
    - "topic": exact topic heading from the document
-   - "subTopic": sub-topic or specific breakdown for that week
-   - "objectivesSummary": brief behavioral objectives or expected learning outcome for the week
-   - "suggestedMaterials": recommended instructional materials or teaching aids mentioned, or standard Nigerian aids suitable for the topic.
+   - "subTopic": sub-topic or specific breakdown
+   - "objectivesSummary": brief behavioral objectives or expected learning outcome
+   - "suggestedMaterials": instructional materials or teaching aids mentioned.
 
-You MUST respond strictly with valid JSON conforming to this structure (no markdown fences, just pure JSON):
+Respond strictly with valid JSON conforming to this structure:
 {
   "subject": "...",
   "classLevel": "...",
@@ -68,87 +118,44 @@ You MUST respond strictly with valid JSON conforming to this structure (no markd
       "suggestedMaterials": "..."
     }
   ]
-}
-`;
+}`;
 
-  const primaryModel = await resolveGeminiModel(apiKey);
-  const candidateModels = Array.from(new Set([
-    primaryModel,
-    'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash-latest',
-    'gemini-1.5-flash-002',
-    'gemini-1.5-flash-001'
-  ]));
-
-  let textOutput: string | null = null;
-  let lastError: Error | null = null;
-
-  for (const model of candidateModels) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  inlineData: {
-                    mimeType: mimeType,
-                    data: base64Data
-                  }
-                },
-                {
-                  text: prompt
-                }
-              ]
-            }
-          ],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            temperature: 0.2
-          }
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        textOutput = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (textOutput) break;
-      } else {
-        const errorText = await response.text();
-        lastError = new Error(`Extraction failed on ${model} (${response.status}): ${errorText}`);
-      }
-    } catch (e: any) {
-      lastError = e;
-    }
-  }
-
-  if (!textOutput) {
-    throw lastError || new Error('No content returned from the document scanner.');
-  }
-
-  const cleanedJson = textOutput.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-  const parsed = JSON.parse(cleanedJson);
+  const provider = getProvider(config.provider);
+  const parsed = await provider.extractFromVision<any>(
+    {
+      prompt,
+      systemPrompt,
+      images: [{ base64: base64Data, mimeType }]
+    },
+    config
+  );
 
   const scheme: SchemeOfWork = {
     id: `scheme-${Date.now()}`,
     subject: parsed.subject || fallbackSubject,
     classLevel: (parsed.classLevel as ClassLevel) || fallbackClass,
     term: (parsed.term as Term) || fallbackTerm,
-    weeks: Array.isArray(parsed.weeks) ? parsed.weeks.map((w: any, idx: number) => ({
-      week: Number(w.week) || idx + 1,
-      topic: String(w.topic || `Week ${idx + 1} Topic`),
-      subTopic: String(w.subTopic || ''),
-      objectivesSummary: String(w.objectivesSummary || 'General understanding of the weekly concept.'),
-      suggestedMaterials: String(w.suggestedMaterials || 'Chalkboard, charts, textbooks.')
-    })) : []
+    weeks: Array.isArray(parsed.weeks)
+      ? parsed.weeks.map((w: any, idx: number) => ({
+          week: Number(w.week) || idx + 1,
+          topic: String(w.topic || `Week ${idx + 1} Topic`),
+          subTopic: String(w.subTopic || ''),
+          objectivesSummary: String(w.objectivesSummary || 'General understanding of weekly concept.'),
+          suggestedMaterials: String(w.suggestedMaterials || 'Chalkboard, charts, textbooks.')
+        }))
+      : [],
+    provenance: {
+      provider: config.provider,
+      modelName: config.model || provider.defaultModel,
+      source: 'book_scan',
+      capturedAt: new Date().toISOString()
+    }
   };
 
   return {
     scheme,
-    sourceFileName: file.name
+    sourceFileName: file.name,
+    originalSizeBytes,
+    optimizedSizeBytes
   };
 }

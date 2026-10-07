@@ -1,10 +1,26 @@
 import type { LessonNote, TeacherProfile, SchemeOfWork } from '../types';
 import { SAMPLE_LESSON_NOTES } from '../data/sampleNotes';
+import { lessonNoteSchema, schemeOfWorkSchema } from '../schemas';
 
 const STORAGE_KEY_NOTES = 'naija_lesson_notes_v1';
 const STORAGE_KEY_SEEDED = 'naija_notes_seeded_v1';
 const STORAGE_KEY_PROFILE = 'naija_teacher_profile_v1';
 const STORAGE_KEY_CUSTOM_SCHEMES = 'naija_custom_schemes_v1';
+
+export interface StorageResult {
+  success: boolean;
+  error?: string;
+}
+
+export function isValidLessonNote(item: unknown): item is LessonNote {
+  if (!item || typeof item !== 'object') return false;
+  return lessonNoteSchema.safeParse(item).success;
+}
+
+export function isValidSchemeOfWork(item: unknown): item is SchemeOfWork {
+  if (!item || typeof item !== 'object') return false;
+  return schemeOfWorkSchema.safeParse(item).success;
+}
 
 export function getStoredNotes(): LessonNote[] {
   try {
@@ -19,17 +35,23 @@ export function getStoredNotes(): LessonNote[] {
 
     if (!raw) return [];
 
-    const parsed: LessonNote[] = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
 
-    return parsed;
+    return parsed.filter((item): item is LessonNote => {
+      const valid = isValidLessonNote(item);
+      if (!valid) {
+        console.warn('Skipping corrupted or incompatible lesson note from storage:', item);
+      }
+      return valid;
+    });
   } catch (e) {
     console.error('Failed to parse notes from storage:', e);
     return [];
   }
 }
 
-export function saveNote(note: LessonNote): void {
+export function saveNote(note: LessonNote): StorageResult {
   try {
     const notes = getStoredNotes();
     const existingIndex = notes.findIndex(n => n.id === note.id);
@@ -39,8 +61,11 @@ export function saveNote(note: LessonNote): void {
       notes.unshift({ ...note, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     }
     localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(notes));
+    return { success: true };
   } catch (e) {
     console.error('Failed to save note:', e);
+    const message = e instanceof Error ? e.message : 'Storage quota exceeded or storage unavailable';
+    return { success: false, error: message };
   }
 }
 
@@ -55,7 +80,7 @@ export function deleteNote(id: string): LessonNote[] {
   }
 }
 
-export function duplicateNote(note: LessonNote): LessonNote {
+export function duplicateNote(note: LessonNote): LessonNote | null {
   const newNote: LessonNote = {
     ...note,
     id: `note-${Date.now()}`,
@@ -63,7 +88,10 @@ export function duplicateNote(note: LessonNote): LessonNote {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
-  saveNote(newNote);
+  const res = saveNote(newNote);
+  if (!res.success) {
+    return null;
+  }
   return newNote;
 }
 
@@ -107,22 +135,31 @@ export function deleteCustomScheme(id: string): SchemeOfWork[] {
 }
 
 export function getTeacherProfile(): TeacherProfile {
+  const defaults: TeacherProfile = {
+    schoolName: '',
+    teacherName: '',
+    defaultDuration: '40 Minutes',
+    activeProvider: 'gemini',
+    geminiApiKey: '',
+    geminiModel: 'gemini-2.5-flash',
+    claudeApiKey: '',
+    claudeModel: 'claude-3-5-sonnet-20241022',
+    openaiApiKey: '',
+    openaiModel: 'gpt-4o-mini',
+    openaiBaseUrl: 'https://api.openai.com/v1'
+  };
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY_PROFILE);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      return { ...defaults, ...parsed };
     }
   } catch (e) {
     console.error('Failed to load profile:', e);
   }
 
-  // Blank by default - prompts user to configure their real school and name
-  return {
-    schoolName: '',
-    teacherName: '',
-    geminiApiKey: '',
-    defaultDuration: '40 Minutes'
-  };
+  return defaults;
 }
 
 export function saveTeacherProfile(profile: TeacherProfile): void {

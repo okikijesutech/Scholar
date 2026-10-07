@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import type { ClassLevel, Term, TeacherProfile, GenerationParams } from '../types';
 import { NIGERIAN_CLASSES, getSubjectsForClass, SAMPLE_SCHEMES_OF_WORK } from '../data/curriculumData';
+import { resolveActiveProviderConfig } from '../services/ai/providers';
 import { Sparkles, BookOpen, Clock, Calendar, Check, Wand2, UploadCloud } from 'lucide-react';
 
 interface GeneratorTabProps {
@@ -29,13 +30,13 @@ export const GeneratorTab: React.FC<GeneratorTabProps> = ({
   const [customInstructions, setCustomInstructions] = useState<string>('');
   const [autofillSuccess, setAutofillSuccess] = useState<boolean>(false);
 
-  // Update subjects when class changes
-  useEffect(() => {
-    const availableSubjects = getSubjectsForClass(classLevel);
+  const handleClassLevelChange = (newClass: ClassLevel) => {
+    setClassLevel(newClass);
+    const availableSubjects = getSubjectsForClass(newClass);
     if (!availableSubjects.includes(subject)) {
       setSubject(availableSubjects[0] || 'Mathematics');
     }
-  }, [classLevel, subject]);
+  };
 
   // Handle autofilling from preloaded NERDC schemes
   const handleAutofillFromScheme = () => {
@@ -65,6 +66,7 @@ export const GeneratorTab: React.FC<GeneratorTabProps> = ({
     e.preventDefault();
     if (!topic.trim()) return;
 
+    const providerConfig = resolveActiveProviderConfig(profile);
     await onGenerate({
       schoolName: profile.schoolName,
       teacherName: profile.teacherName,
@@ -77,7 +79,8 @@ export const GeneratorTab: React.FC<GeneratorTabProps> = ({
       duration,
       period,
       customInstructions,
-      apiKey: profile.geminiApiKey
+      apiKey: providerConfig.apiKey,
+      providerConfig
     });
   };
 
@@ -155,7 +158,7 @@ export const GeneratorTab: React.FC<GeneratorTabProps> = ({
               </label>
               <select
                 value={classLevel}
-                onChange={e => setClassLevel(e.target.value as ClassLevel)}
+                onChange={e => handleClassLevelChange(e.target.value as ClassLevel)}
                 className="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-medium text-slate-800 bg-white focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
               >
                 <optgroup label="Primary School (Basic 1 - 6)">

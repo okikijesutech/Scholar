@@ -1,18 +1,27 @@
-import React, { useState, useEffect } from 'react';
-import type { ClassLevel, Term, SchemeOfWork, TeacherProfile } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import type { ClassLevel, Term, SchemeOfWork, SchemeWeek, TeacherProfile } from '../types';
 import { NIGERIAN_CLASSES, getSubjectsForClass } from '../data/curriculumData';
-import { extractSchemeFromDocument } from '../services/schemeExtractorService';
-import { 
-  X, 
-  UploadCloud, 
-  FileText, 
-  Image as ImageIcon, 
-  Sparkles, 
-  CheckCircle, 
-  AlertCircle, 
+import {
+  extractSchemeFromDocument,
+  mergeSchemeWeeks,
+  type ExtractionResult
+} from '../services/schemeExtractorService';
+import { resolveActiveProviderConfig } from '../services/ai/providers';
+import {
+  X,
+  UploadCloud,
+  FileText,
+  Sparkles,
+  CheckCircle,
+  AlertCircle,
+  BookOpen,
   Settings,
-  Calendar,
-  BookOpen
+  Plus,
+  Trash2,
+  Download,
+  Upload,
+  Layers,
+  ArrowRight
 } from 'lucide-react';
 
 interface SchemeImportModalProps {
@@ -24,6 +33,7 @@ interface SchemeImportModalProps {
   initialClassLevel?: ClassLevel;
   initialSubject?: string;
   initialTerm?: Term;
+  existingSchemes?: SchemeOfWork[];
 }
 
 export const SchemeImportModal: React.FC<SchemeImportModalProps> = ({
@@ -34,7 +44,8 @@ export const SchemeImportModal: React.FC<SchemeImportModalProps> = ({
   onOpenSettings,
   initialClassLevel = 'JSS 2',
   initialSubject,
-  initialTerm = '1st Term'
+  initialTerm = '1st Term',
+  existingSchemes = []
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -45,23 +56,33 @@ export const SchemeImportModal: React.FC<SchemeImportModalProps> = ({
 
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [scanError, setScanError] = useState<string | null>(null);
-  const [extractedScheme, setExtractedScheme] = useState<SchemeOfWork | null>(null);
+  const [extractedWeeks, setExtractedWeeks] = useState<SchemeWeek[]>([]);
+  const [isReviewing, setIsReviewing] = useState<boolean>(false);
+  const [mergeWithExisting, setMergeWithExisting] = useState<boolean>(true);
+  const [extractionMeta, setExtractionMeta] = useState<{
+    originalSize: number;
+    optimizedSize: number;
+  } | null>(null);
 
-  // Synchronize modal with caller's active class, subject, and term
-  useEffect(() => {
+  const jsonFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [prevIsOpen, setPrevIsOpen] = useState<boolean>(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen) {
+      const activeClass = initialClassLevel || classLevel;
       if (initialClassLevel) setClassLevel(initialClassLevel);
       if (initialTerm) setTerm(initialTerm);
-      const subjs = getSubjectsForClass(initialClassLevel || classLevel);
+      const subjs = getSubjectsForClass(activeClass);
       if (initialSubject && subjs.includes(initialSubject)) {
         setSubject(initialSubject);
       } else {
         setSubject(subjs[0] || 'Mathematics');
       }
     }
-  }, [isOpen, initialClassLevel, initialSubject, initialTerm]);
+  }
 
-  // Clean up Object URL to prevent memory leaks
+  // Clean up Object URL
   useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -72,6 +93,13 @@ export const SchemeImportModal: React.FC<SchemeImportModalProps> = ({
 
   if (!isOpen) return null;
 
+  const activeConfig = resolveActiveProviderConfig(profile);
+  const hasValidKey = Boolean(activeConfig.apiKey && activeConfig.apiKey.trim().length > 5);
+
+  const existingMatchingScheme = existingSchemes.find(
+    s => s.subject === subject && s.classLevel === classLevel && s.term === term
+  );
+
   const handleModalClose = () => {
     if (previewUrl) {
       URL.revokeObjectURL(previewUrl);
@@ -79,7 +107,9 @@ export const SchemeImportModal: React.FC<SchemeImportModalProps> = ({
     }
     setSelectedFile(null);
     setScanError(null);
-    setExtractedScheme(null);
+    setExtractedWeeks([]);
+    setIsReviewing(false);
+    setExtractionMeta(null);
     onClose();
   };
 
@@ -91,7 +121,7 @@ export const SchemeImportModal: React.FC<SchemeImportModalProps> = ({
       }
       setSelectedFile(file);
       setScanError(null);
-      setExtractedScheme(null);
+      setIsReviewing(false);
 
       if (file.type.startsWith('image/')) {
         const url = URL.createObjectURL(file);
@@ -105,256 +135,468 @@ export const SchemeImportModal: React.FC<SchemeImportModalProps> = ({
   const handleStartExtraction = async () => {
     if (!selectedFile) return;
 
-    if (!profile.geminiApiKey || profile.geminiApiKey.trim().length < 10) {
-      setScanError('Please enter your free Google Gemini API key in Settings to scan and extract schemes from images and PDFs.');
+    if (!hasValidKey) {
+      setScanError(`Please configure your ${activeConfig.provider.toUpperCase()} API key in Settings to scan syllabus books.`);
       return;
     }
 
     try {
       setIsScanning(true);
       setScanError(null);
-      const result = await extractSchemeFromDocument(
+      const result: ExtractionResult = await extractSchemeFromDocument(
         selectedFile,
         classLevel,
         subject,
         term,
-        profile.geminiApiKey
+        activeConfig
       );
-      setExtractedScheme(result.scheme);
-    } catch (err: any) {
+
+      setExtractedWeeks(result.scheme.weeks);
+      setExtractionMeta({
+        originalSize: result.originalSizeBytes,
+        optimizedSize: result.optimizedSizeBytes
+      });
+      setIsReviewing(true);
+    } catch (err: unknown) {
       console.error('Scan error:', err);
-      setScanError(err.message || 'Failed to scan document. Please check the image/PDF clarity and your Gemini API key.');
+      const msg = err instanceof Error ? err.message : String(err);
+      setScanError(msg || 'Failed to scan document. Please check clarity and API connection.');
     } finally {
       setIsScanning(false);
     }
   };
 
+  const handleUpdateWeek = (index: number, field: keyof SchemeWeek, value: any) => {
+    const updated = [...extractedWeeks];
+    updated[index] = { ...updated[index], [field]: value };
+    setExtractedWeeks(updated);
+  };
+
+  const handleAddWeek = () => {
+    const nextWeekNumber = extractedWeeks.length > 0 ? Math.max(...extractedWeeks.map(w => w.week)) + 1 : 1;
+    setExtractedWeeks([
+      ...extractedWeeks,
+      {
+        week: nextWeekNumber,
+        topic: 'New Topic',
+        subTopic: '',
+        objectivesSummary: 'Students should be able to...',
+        suggestedMaterials: 'Chalkboard, charts, textbook'
+      }
+    ]);
+  };
+
+  const handleDeleteWeek = (index: number) => {
+    setExtractedWeeks(extractedWeeks.filter((_, idx) => idx !== index));
+  };
+
+  const handleExportJson = () => {
+    const schemeToExport: SchemeOfWork = {
+      id: existingMatchingScheme?.id || `scheme-${Date.now()}`,
+      subject,
+      classLevel,
+      term,
+      weeks: extractedWeeks,
+      provenance: {
+        provider: activeConfig.provider,
+        modelName: activeConfig.model,
+        source: 'book_scan',
+        capturedAt: new Date().toISOString()
+      }
+    };
+
+    const blob = new Blob([JSON.stringify(schemeToExport, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `scheme_${subject.replace(/\s+/g, '_')}_${classLevel.replace(/\s+/g, '_')}_${term.replace(/\s+/g, '_')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportJsonFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result as string);
+        if (parsed && Array.isArray(parsed.weeks)) {
+          if (parsed.subject) setSubject(parsed.subject);
+          if (parsed.classLevel) setClassLevel(parsed.classLevel);
+          if (parsed.term) setTerm(parsed.term);
+          setExtractedWeeks(parsed.weeks);
+          setIsReviewing(true);
+        } else {
+          alert('Invalid scheme JSON format.');
+        }
+      } catch {
+        alert('Failed to parse scheme JSON file.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const handleAcceptAndSave = () => {
-    if (extractedScheme) {
-      onSchemeExtracted(extractedScheme);
-      handleModalClose();
+    let finalWeeks = extractedWeeks;
+
+    if (existingMatchingScheme && mergeWithExisting) {
+      finalWeeks = mergeSchemeWeeks(existingMatchingScheme.weeks, extractedWeeks, true);
     }
+
+    const schemeToSave: SchemeOfWork = {
+      id: existingMatchingScheme?.id || `scheme-${Date.now()}`,
+      subject,
+      classLevel,
+      term,
+      weeks: finalWeeks,
+      provenance: {
+        provider: activeConfig.provider,
+        modelName: activeConfig.model,
+        source: 'book_scan',
+        capturedAt: new Date().toISOString()
+      }
+    };
+
+    onSchemeExtracted(schemeToSave);
+    handleModalClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+      <div className="relative w-full max-w-3xl max-h-[90vh] flex flex-col rounded-3xl bg-white shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center shadow-xs">
-              <UploadCloud className="w-5 h-5" />
-            </div>
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 bg-emerald-800 text-white shrink-0">
+          <div className="flex items-center gap-2.5">
+            <UploadCloud className="w-5 h-5 text-emerald-300" />
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Scan & Import Scheme of Work</h2>
-              <p className="text-xs text-slate-500">Extract 12-week syllabus topics automatically from PDF or phone photo</p>
+              <h2 className="text-base font-bold">Import &amp; Digitize Scheme of Work</h2>
+              <p className="text-[11px] text-emerald-200">
+                Snap photos of your physical syllabus book or load an offline JSON backup
+              </p>
             </div>
           </div>
           <button
             onClick={handleModalClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+            className="rounded-lg p-1 text-emerald-100 hover:bg-emerald-700/50 hover:text-white transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Scrollable Content Body */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1">
-          {/* Metadata Target Selector */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Class Level</label>
-              <select
-                value={classLevel}
-                onChange={e => {
-                  const newClass = e.target.value as ClassLevel;
-                  setClassLevel(newClass);
-                  const subjs = getSubjectsForClass(newClass);
-                  if (!subjs.includes(subject)) {
-                    setSubject(subjs[0] || 'Mathematics');
-                  }
-                }}
-                className="w-full text-xs font-semibold rounded-xl border border-slate-300 p-2 bg-white"
-              >
-                {NIGERIAN_CLASSES.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
+        {/* Content Area */}
+        <div className="p-6 overflow-y-auto space-y-6">
+          {!isReviewing ? (
+            /* Upload & Configuration Screen */
+            <div className="space-y-5">
+              {/* Target Class/Subject/Term Selectors */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Target Class</label>
+                  <select
+                    value={classLevel}
+                    onChange={e => setClassLevel(e.target.value as ClassLevel)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-800 bg-white focus:border-emerald-600 focus:outline-none"
+                  >
+                    {NIGERIAN_CLASSES.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Subject</label>
-              <select
-                value={subject}
-                onChange={e => setSubject(e.target.value)}
-                className="w-full text-xs font-semibold rounded-xl border border-slate-300 p-2 bg-white"
-              >
-                {availableSubjects.map(s => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Subject</label>
+                  <select
+                    value={subject}
+                    onChange={e => setSubject(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-800 bg-white focus:border-emerald-600 focus:outline-none"
+                  >
+                    {availableSubjects.map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Term</label>
-              <select
-                value={term}
-                onChange={e => setTerm(e.target.value as Term)}
-                className="w-full text-xs font-semibold rounded-xl border border-slate-300 p-2 bg-white"
-              >
-                <option value="1st Term">1st Term</option>
-                <option value="2nd Term">2nd Term</option>
-                <option value="3rd Term">3rd Term</option>
-              </select>
-            </div>
-          </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Term</label>
+                  <select
+                    value={term}
+                    onChange={e => setTerm(e.target.value as Term)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-800 bg-white focus:border-emerald-600 focus:outline-none"
+                  >
+                    <option value="1st Term">1st Term</option>
+                    <option value="2nd Term">2nd Term</option>
+                    <option value="3rd Term">3rd Term</option>
+                  </select>
+                </div>
+              </div>
 
-          {/* Upload Area */}
-          {!extractedScheme && (
-            <div className="space-y-4">
-              <label className="block">
-                <div className={`border-2 border-dashed rounded-3xl p-8 text-center cursor-pointer transition ${
-                  selectedFile ? 'border-emerald-500 bg-emerald-50/20' : 'border-slate-300 hover:border-emerald-600 bg-slate-50/50'
-                }`}>
-                  <input
-                    type="file"
-                    accept="image/*,application/pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  
-                  {selectedFile ? (
-                    <div className="space-y-3">
-                      <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 mx-auto flex items-center justify-center">
-                        {selectedFile.type.startsWith('image/') ? <ImageIcon className="w-6 h-6" /> : <FileText className="w-6 h-6" />}
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-900">{selectedFile.name}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">{(selectedFile.size / 1024).toFixed(1)} KB • Click to change</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 mx-auto flex items-center justify-center">
-                        <UploadCloud className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-800">Drop your syllabus photo or PDF here</p>
-                        <p className="text-xs text-slate-500 mt-1">Supports JPG, PNG, WebP smartphone photos, or PDF documents</p>
-                      </div>
-                      <span className="inline-block px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-bold">
-                        Browse Files
-                      </span>
-                    </div>
+              {/* Upload Dropzone */}
+              <div className="border-2 border-dashed border-slate-300 hover:border-emerald-600 rounded-2xl p-6 text-center transition bg-slate-50/50">
+                <input
+                  type="file"
+                  id="scheme-file-input"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <label
+                  htmlFor="scheme-file-input"
+                  className="cursor-pointer flex flex-col items-center justify-center space-y-2"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-xs">
+                    <UploadCloud className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-emerald-800 hover:underline">
+                      Click to choose photo or PDF
+                    </span>
+                    <span className="text-xs text-slate-500"> of your syllabus</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 max-w-sm">
+                    Large phone snapshots are automatically compressed down to ~1500px in your browser before upload to save data and speed up extraction.
+                  </p>
+                </label>
+              </div>
+
+              {/* Preview Box */}
+              {selectedFile && (
+                <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-200/80 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 text-emerald-900 font-medium truncate">
+                    <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span className="truncate">{selectedFile.name}</span>
+                    <span className="text-[11px] text-emerald-600">
+                      ({Math.round(selectedFile.size / 1024)} KB)
+                    </span>
+                  </div>
+                  {previewUrl && (
+                    <img
+                      src={previewUrl}
+                      alt="Preview"
+                      className="w-10 h-10 object-cover rounded-lg border border-emerald-300 shrink-0"
+                    />
                   )}
                 </div>
-              </label>
-
-              {/* Image Preview if applicable */}
-              {previewUrl && (
-                <div className="relative rounded-2xl overflow-hidden border border-slate-200 max-h-48 bg-slate-100 flex items-center justify-center">
-                  <img src={previewUrl} alt="Scheme Preview" className="object-contain h-48 w-full" />
-                </div>
               )}
 
-              {/* Gemini API Key Notice */}
-              {(!profile.geminiApiKey || profile.geminiApiKey.trim().length < 10) && (
-                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
-                  <div className="text-xs text-amber-900 space-y-1">
-                    <p className="font-bold">Multimodal Vision AI Requires Free Gemini API Key</p>
-                    <p className="text-amber-800">
-                      To transcribe photo schemes, add your free key from Google AI Studio in Settings.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleModalClose();
-                        onOpenSettings();
-                      }}
-                      className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 underline mt-1"
-                    >
-                      <Settings className="w-3.5 h-3.5" />
-                      <span>Open Settings to add API Key</span>
-                    </button>
-                  </div>
+              {/* Active Provider Indicator */}
+              <div className="flex items-center justify-between p-3 bg-slate-100 rounded-xl text-xs">
+                <div className="flex items-center gap-2 text-slate-700">
+                  <Sparkles className="w-4 h-4 text-emerald-600" />
+                  <span>
+                    Vision Model: <strong className="capitalize">{activeConfig.provider}</strong> ({activeConfig.model || 'Default'})
+                  </span>
                 </div>
-              )}
+                {!hasValidKey && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleModalClose();
+                      onOpenSettings();
+                    }}
+                    className="text-xs font-bold text-emerald-800 underline flex items-center gap-1"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    Configure API Key
+                  </button>
+                )}
+              </div>
 
               {/* Error Box */}
               {scanError && (
-                <div className="p-4 rounded-2xl bg-red-50 border border-red-200 flex items-start gap-3 text-red-900 text-xs">
+                <div className="p-3.5 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-red-900 text-xs">
                   <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                   <p>{scanError}</p>
                 </div>
               )}
 
-              <div className="flex items-center justify-end gap-3 pt-3">
-                <button
-                  type="button"
-                  onClick={handleModalClose}
-                  className="px-4 py-2.5 text-xs font-semibold text-slate-600 hover:text-slate-900"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleStartExtraction}
-                  disabled={!selectedFile || isScanning}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white px-6 py-2.5 text-xs font-bold shadow-md transition cursor-pointer"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>{isScanning ? 'Scanning Scheme with Vision AI...' : 'Start Extraction'}</span>
-                </button>
-              </div>
-            </div>
-          )}
+              {/* Action Buttons & JSON Backup */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    ref={jsonFileInputRef}
+                    accept="application/json"
+                    onChange={handleImportJsonFile}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => jsonFileInputRef.current?.click()}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition cursor-pointer"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Load JSON Backup</span>
+                  </button>
+                </div>
 
-          {/* Results Preview */}
-          {extractedScheme && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between bg-emerald-50 p-4 rounded-2xl border border-emerald-200">
-                <div className="flex items-center gap-2.5 text-emerald-900 text-xs font-bold">
-                  <CheckCircle className="w-4 h-4 text-emerald-600" />
-                  <span>Successfully Extracted {extractedScheme.weeks.length} Weeks for {extractedScheme.subject} ({extractedScheme.classLevel})</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleModalClose}
+                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartExtraction}
+                    disabled={!selectedFile || isScanning}
+                    className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white px-5 py-2 text-xs font-bold shadow-md transition cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span>{isScanning ? 'Scanning Book...' : 'Extract Weeks with Vision'}</span>
+                  </button>
                 </div>
               </div>
+            </div>
+          ) : (
+            /* Editable Review Grid Screen */
+            <div className="space-y-4">
+              {/* Header Banner with Compression Stats */}
+              <div className="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-2 text-emerald-950 font-bold">
+                  <CheckCircle className="w-4 h-4 text-emerald-600" />
+                  <span>
+                    Extracted {extractedWeeks.length} Weeks for {subject} ({classLevel})
+                  </span>
+                </div>
+                {extractionMeta && extractionMeta.originalSize > extractionMeta.optimizedSize && (
+                  <span className="text-[11px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-semibold">
+                    Image optimized: {Math.round(extractionMeta.originalSize / 1024)}KB &rarr; {Math.round(extractionMeta.optimizedSize / 1024)}KB in browser
+                  </span>
+                )}
+              </div>
 
-              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {extractedScheme.weeks.map(item => (
-                  <div key={item.week} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-                    <div className="font-bold text-slate-900 flex items-center justify-between">
-                      <span className="text-emerald-700">Week {item.week}: {item.topic}</span>
+              {/* Merge with Existing Weeks Toggle */}
+              {existingMatchingScheme && (
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 flex items-center justify-between text-xs text-amber-900">
+                  <div className="flex items-center gap-2 font-medium">
+                    <Layers className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>
+                      Existing scheme found ({existingMatchingScheme.weeks.length} weeks). Merge incoming weeks?
+                    </span>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer font-bold">
+                    <input
+                      type="checkbox"
+                      checked={mergeWithExisting}
+                      onChange={e => setMergeWithExisting(e.target.checked)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span>Merge by week</span>
+                  </label>
+                </div>
+              )}
+
+              {/* Editable Table */}
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                {extractedWeeks.map((item, idx) => (
+                  <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-emerald-800">Week:</span>
+                        <input
+                          type="number"
+                          value={item.week}
+                          onChange={e => handleUpdateWeek(idx, 'week', Number(e.target.value))}
+                          className="w-14 rounded-lg border border-slate-300 px-2 py-1 text-center font-bold text-xs bg-white"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteWeek(idx)}
+                        className="text-slate-400 hover:text-red-600 transition p-1"
+                        title="Delete week"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
-                    {item.subTopic && (
-                      <p className="text-slate-600">
-                        <span className="font-semibold text-slate-700">Sub-topic:</span> {item.subTopic}
-                      </p>
-                    )}
-                    {item.objectivesSummary && (
-                      <p className="text-slate-500 text-[11px]">
-                        <span className="font-semibold text-slate-600">Objectives:</span> {item.objectivesSummary}
-                      </p>
-                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">Topic</label>
+                        <input
+                          type="text"
+                          value={item.topic}
+                          onChange={e => handleUpdateWeek(idx, 'topic', e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 px-2.5 py-1 text-xs bg-white text-slate-800"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">Sub-Topic</label>
+                        <input
+                          type="text"
+                          value={item.subTopic}
+                          onChange={e => handleUpdateWeek(idx, 'subTopic', e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 px-2.5 py-1 text-xs bg-white text-slate-800"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">Objectives</label>
+                        <input
+                          type="text"
+                          value={item.objectivesSummary}
+                          onChange={e => handleUpdateWeek(idx, 'objectivesSummary', e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 px-2.5 py-1 text-xs bg-white text-slate-800"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-0.5">Teaching Aids / Materials</label>
+                        <input
+                          type="text"
+                          value={item.suggestedMaterials}
+                          onChange={e => handleUpdateWeek(idx, 'suggestedMaterials', e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 px-2.5 py-1 text-xs bg-white text-slate-800"
+                        />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
 
+              {/* Add Week Button */}
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={handleAddWeek}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-700 text-xs font-semibold transition cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Another Week</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportJson}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold transition cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Export JSON Backup</span>
+                </button>
+              </div>
+
+              {/* Footer Actions */}
               <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setExtractedScheme(null)}
+                  onClick={() => setIsReviewing(false)}
                   className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900"
                 >
-                  Back / Upload Another
+                  &larr; Back to Upload
                 </button>
                 <button
                   type="button"
                   onClick={handleAcceptAndSave}
-                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-6 py-2.5 text-xs font-bold shadow-md transition"
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-5 py-2 text-xs font-bold shadow-md transition cursor-pointer"
                 >
                   <BookOpen className="w-4 h-4" />
-                  <span>Save to Scheme of Work & Use Now</span>
+                  <span>Save Scheme to App Library</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
