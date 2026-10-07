@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cambium:scan": "node C:/Users/HP/.gemini/antigravity/scratch/cambium/dist/cli.js scan .",
+    "cambium:baseline": "node C:/Users/HP/.gemini/antigravity/scratch/cambium/dist/cli.js baseline .",
+    "cambium:drift": "node C:/Users/HP/.gemini/antigravity/scratch/cambium/dist/cli.js drift ."
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
