@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   AlertCircle
 } from 'lucide-react';
+import { SectionFeedbackControls } from './SectionFeedbackControls';
 
 interface InspectionSheetProps {
   note: LessonNote;
@@ -243,14 +244,21 @@ export const InspectionSheet: React.FC<InspectionSheetProps> = ({
             <CheckCircle2 className="w-4 h-4 text-emerald-700 no-print" />
             <span>Learning Objectives</span>
           </h2>
-          {isEditing && (
-            <button
-              onClick={handleAddObjective}
-              className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold hover:bg-emerald-200 cursor-pointer"
-            >
-              + Add Objective
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            <SectionFeedbackControls
+              noteId={note.id}
+              sectionKey="objectives"
+              sectionTitle="Learning Objectives"
+            />
+            {isEditing && (
+              <button
+                onClick={handleAddObjective}
+                className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold hover:bg-emerald-200 cursor-pointer"
+              >
+                + Add Objective
+              </button>
+            )}
+          </div>
         </div>
         <p className="text-xs italic text-slate-600">
           By the end of the lesson, students should be able to:
@@ -318,22 +326,29 @@ export const InspectionSheet: React.FC<InspectionSheetProps> = ({
           <div className="space-y-5">
             {note.contentSections.map((section, idx) => (
               <div key={idx} className="bg-slate-50/70 p-4 sm:p-5 rounded-2xl border border-slate-200 space-y-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold">
-                    {section.sectionNumber}
-                  </span>
-                  {isEditing ? (
-                    <input
-                      type="text"
-                      value={section.heading}
-                      onChange={e => handleSectionHeadingChange(idx, e.target.value)}
-                      className="flex-1 font-bold text-sm sm:text-base border border-slate-300 rounded px-2 py-1"
-                    />
-                  ) : (
-                    <h3 className="text-sm sm:text-base font-bold text-slate-950">
-                      {section.heading}
-                    </h3>
-                  )}
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-1">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold shrink-0">
+                      {section.sectionNumber}
+                    </span>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={section.heading}
+                        onChange={e => handleSectionHeadingChange(idx, e.target.value)}
+                        className="flex-1 font-bold text-sm sm:text-base border border-slate-300 rounded px-2 py-1"
+                      />
+                    ) : (
+                      <h3 className="text-sm sm:text-base font-bold text-slate-950">
+                        {section.heading}
+                      </h3>
+                    )}
+                  </div>
+                  <SectionFeedbackControls
+                    noteId={note.id}
+                    sectionKey={`content-section-${section.sectionNumber}`}
+                    sectionTitle={`Section ${section.sectionNumber}: ${section.heading}`}
+                  />
                 </div>
 
                 {isEditing ? (
@@ -372,11 +387,18 @@ export const InspectionSheet: React.FC<InspectionSheetProps> = ({
       {/* Classroom Activities */}
       {note.classroomActivities && note.classroomActivities.length > 0 && (
         <section className="space-y-4 pt-2">
-          <div className="flex items-center gap-2 border-b-2 border-slate-900 pb-1.5">
-            <Users className="w-4 h-4 text-emerald-800 no-print" />
-            <h2 className="text-base font-extrabold uppercase tracking-wider text-slate-950">
-              Classroom Activities
-            </h2>
+          <div className="flex items-center justify-between border-b-2 border-slate-900 pb-1.5">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-emerald-800 no-print" />
+              <h2 className="text-base font-extrabold uppercase tracking-wider text-slate-950">
+                Classroom Activities
+              </h2>
+            </div>
+            <SectionFeedbackControls
+              noteId={note.id}
+              sectionKey="activities"
+              sectionTitle="Classroom Activities"
+            />
           </div>
 
           <div className="grid grid-cols-1 gap-4">
@@ -404,9 +426,16 @@ export const InspectionSheet: React.FC<InspectionSheetProps> = ({
 
       {/* Presentation Steps Table */}
       <section className="space-y-2 pt-2">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-950 border-b border-slate-900 pb-1">
-          Instructional Presentation Procedure
-        </h2>
+        <div className="flex items-center justify-between border-b border-slate-900 pb-1">
+          <h2 className="text-sm font-bold uppercase tracking-wider text-slate-950">
+            Instructional Presentation Procedure
+          </h2>
+          <SectionFeedbackControls
+            noteId={note.id}
+            sectionKey="presentation-steps"
+            sectionTitle="Presentation Procedure Steps"
+          />
+        </div>
 
         <div className="overflow-x-auto">
           <table className="print-table w-full border-collapse border border-slate-900 text-xs sm:text-sm">
@@ -479,14 +508,21 @@ export const InspectionSheet: React.FC<InspectionSheetProps> = ({
           <h2 className="text-sm font-bold uppercase tracking-wider text-slate-950">
             Evaluation Questions
           </h2>
-          {isEditing && (
-            <button
-              onClick={handleAddEvaluation}
-              className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold hover:bg-emerald-200 cursor-pointer"
-            >
-              + Add Question
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            <SectionFeedbackControls
+              noteId={note.id}
+              sectionKey="evaluation"
+              sectionTitle="Evaluation Questions"
+            />
+            {isEditing && (
+              <button
+                onClick={handleAddEvaluation}
+                className="text-xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold hover:bg-emerald-200 cursor-pointer"
+              >
+                + Add Question
+              </button>
+            )}
+          </div>
         </div>
 
         <ol className="space-y-1.5 list-decimal list-inside text-xs sm:text-sm pl-2">

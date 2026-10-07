@@ -116,3 +116,26 @@ export const teacherProfileSchema = z.object({
 export type LessonNoteSchemaType = z.infer<typeof lessonNoteSchema>;
 export type SchemeOfWorkSchemaType = z.infer<typeof schemeOfWorkSchema>;
 export type TeacherProfileSchemaType = z.infer<typeof teacherProfileSchema>;
+
+export const feedbackReasonSchema = z.enum([
+  'not_nigerian_context',
+  'too_advanced',
+  'too_simple',
+  'wrong_curriculum_week',
+  'inaccurate_content',
+  'unclear_explanation'
+]);
+
+export const sectionFeedbackSchema = z.object({
+  id: z.string(),
+  noteId: z.string(),
+  sectionKey: z.string(),
+  sectionTitle: z.string(),
+  rating: z.enum(['thumbs_up', 'thumbs_down']),
+  reasons: z.array(feedbackReasonSchema).default([]),
+  comment: z.string().optional(),
+  createdAt: z.string().default(() => new Date().toISOString())
+});
+
+export type FeedbackReason = z.infer<typeof feedbackReasonSchema>;
+export type SectionFeedback = z.infer<typeof sectionFeedbackSchema>;
