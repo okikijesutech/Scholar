@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { ClassLevel, Term, TeacherProfile, GenerationParams } from '../types';
 import { NIGERIAN_CLASSES, getSubjectsForClass, SAMPLE_SCHEMES_OF_WORK } from '../data/curriculumData';
+import { resolveActiveProviderConfig } from '../services/ai/providers';
 import { Sparkles, BookOpen, Clock, Calendar, Check, Wand2, UploadCloud } from 'lucide-react';
 
 interface GeneratorTabProps {
@@ -65,6 +66,7 @@ export const GeneratorTab: React.FC<GeneratorTabProps> = ({
     e.preventDefault();
     if (!topic.trim()) return;
 
+    const providerConfig = resolveActiveProviderConfig(profile);
     await onGenerate({
       schoolName: profile.schoolName,
       teacherName: profile.teacherName,
@@ -77,7 +79,8 @@ export const GeneratorTab: React.FC<GeneratorTabProps> = ({
       duration,
       period,
       customInstructions,
-      apiKey: profile.geminiApiKey
+      apiKey: providerConfig.apiKey,
+      providerConfig
     });
   };
 

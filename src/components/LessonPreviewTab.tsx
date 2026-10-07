@@ -1,23 +1,29 @@
 import React, { useState } from 'react';
-import type { LessonNote } from '../types';
+import type { LessonNote, TeacherProfile } from '../types';
 import { exportToDocx, formatAsPlainText } from '../services/exportService';
 import { LessonActionBar } from './preview/LessonActionBar';
 import { InspectionSheet } from './preview/InspectionSheet';
+import { RefineNoteModal } from './preview/RefineNoteModal';
 import { BookOpen, Sparkles } from 'lucide-react';
 
 interface LessonPreviewTabProps {
   note: LessonNote | null;
   onSaveNote: (note: LessonNote) => boolean | void;
   onNewNote: () => void;
+  profile: TeacherProfile;
+  onOpenSettings?: () => void;
 }
 
 export const LessonPreviewTab: React.FC<LessonPreviewTabProps> = ({
   note: initialNote,
   onSaveNote,
-  onNewNote
+  onNewNote,
+  profile,
+  onOpenSettings
 }) => {
   const [note, setNote] = useState<LessonNote | null>(initialNote);
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [isRefineModalOpen, setIsRefineModalOpen] = useState<boolean>(false);
   const [copiedSuccess, setCopiedSuccess] = useState<boolean>(false);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [isExportingDocx, setIsExportingDocx] = useState<boolean>(false);
@@ -85,6 +91,7 @@ export const LessonPreviewTab: React.FC<LessonPreviewTabProps> = ({
       <LessonActionBar
         isEditing={isEditing}
         onToggleEdit={() => setIsEditing(!isEditing)}
+        onOpenRefine={() => setIsRefineModalOpen(true)}
         onPrint={handlePrint}
         onExportDocx={handleExportDocx}
         isExportingDocx={isExportingDocx}
@@ -98,6 +105,18 @@ export const LessonPreviewTab: React.FC<LessonPreviewTabProps> = ({
         note={note}
         isEditing={isEditing}
         onUpdateNote={setNote}
+      />
+
+      <RefineNoteModal
+        isOpen={isRefineModalOpen}
+        onClose={() => setIsRefineModalOpen(false)}
+        note={note}
+        onApplyRefinedNote={refined => {
+          setNote(refined);
+          onSaveNote(refined);
+        }}
+        profile={profile}
+        onOpenSettings={onOpenSettings}
       />
     </div>
   );

@@ -141,22 +141,31 @@ export function deleteCustomScheme(id: string): SchemeOfWork[] {
 }
 
 export function getTeacherProfile(): TeacherProfile {
+  const defaults: TeacherProfile = {
+    schoolName: '',
+    teacherName: '',
+    defaultDuration: '40 Minutes',
+    activeProvider: 'gemini',
+    geminiApiKey: '',
+    geminiModel: 'gemini-2.5-flash',
+    claudeApiKey: '',
+    claudeModel: 'claude-3-5-sonnet-20241022',
+    openaiApiKey: '',
+    openaiModel: 'gpt-4o-mini',
+    openaiBaseUrl: 'https://api.openai.com/v1'
+  };
+
   try {
     const raw = localStorage.getItem(STORAGE_KEY_PROFILE);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      return { ...defaults, ...parsed };
     }
   } catch (e) {
     console.error('Failed to load profile:', e);
   }
 
-  // Blank by default - prompts user to configure their real school and name
-  return {
-    schoolName: '',
-    teacherName: '',
-    geminiApiKey: '',
-    defaultDuration: '40 Minutes'
-  };
+  return defaults;
 }
 
 export function saveTeacherProfile(profile: TeacherProfile): void {

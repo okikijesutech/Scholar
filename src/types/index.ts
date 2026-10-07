@@ -29,6 +29,22 @@ export interface ClassroomActivity {
   items?: string[];
 }
 
+export type AIProviderId = 'gemini' | 'claude' | 'openai';
+
+export interface AIProviderConfig {
+  provider: AIProviderId;
+  apiKey: string;
+  model?: string;
+  baseUrl?: string;
+}
+
+export interface ProvenanceMetadata {
+  provider?: AIProviderId | 'offline_skeleton';
+  modelName?: string;
+  source?: 'ai' | 'offline_skeleton' | 'book_scan' | 'manual';
+  capturedAt?: string;
+}
+
 export interface LessonNote {
   id: string;
   schoolName: string;
@@ -70,9 +86,10 @@ export interface LessonNote {
   teacherRemarks?: string;
   hodRemarks?: string;
   
-  // Transparency & Origin Metadata
+  // Transparency, Origin & Provenance Metadata
   isOfflineDraft?: boolean;
   generationError?: string;
+  provenance?: ProvenanceMetadata;
 
   createdAt: string;
   updatedAt: string;
@@ -92,13 +109,23 @@ export interface SchemeOfWork {
   classLevel: ClassLevel;
   term: Term;
   weeks: SchemeWeek[];
+  provenance?: ProvenanceMetadata;
 }
 
 export interface TeacherProfile {
   schoolName: string;
   teacherName: string;
-  geminiApiKey?: string;
   defaultDuration: string;
+  
+  // Multi-Provider Settings
+  activeProvider?: AIProviderId;
+  geminiApiKey?: string;
+  geminiModel?: string;
+  claudeApiKey?: string;
+  claudeModel?: string;
+  openaiApiKey?: string;
+  openaiModel?: string;
+  openaiBaseUrl?: string;
 }
 
 export interface GenerationParams {
@@ -114,4 +141,5 @@ export interface GenerationParams {
   period?: string;
   customInstructions?: string;
   apiKey?: string;
+  providerConfig?: AIProviderConfig;
 }

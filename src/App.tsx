@@ -10,6 +10,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { SchemeImportModal } from './components/SchemeImportModal';
 import type { LessonNote, TeacherProfile, ClassLevel, Term, SchemeOfWork, GenerationParams } from './types';
 import { generateLessonNote } from './services/aiGenerator';
+import { resolveActiveProviderConfig } from './services/ai/providers';
 import { 
   getStoredNotes, 
   saveNote, 
@@ -98,8 +99,17 @@ export function App() {
     term: Term,
     week: number,
     topic: string,
-    subTopic: string
+    subTopic: string,
+    objectivesSummary?: string,
+    suggestedMaterials?: string
   ) => {
+    const providerConfig = resolveActiveProviderConfig(profile);
+    const customInstructions = [
+      objectivesSummary ? `Specific Syllabus Objectives: ${objectivesSummary}` : '',
+      suggestedMaterials ? `Prescribed Teaching Aids / Materials: ${suggestedMaterials}` : '',
+      'Strictly ground lesson content in these captured syllabus objectives and teaching aids.'
+    ].filter(Boolean).join('\n');
+
     await handleGenerate({
       schoolName: profile.schoolName,
       teacherName: profile.teacherName,
@@ -111,8 +121,9 @@ export function App() {
       subTopic,
       duration: profile.defaultDuration || '40 Minutes',
       period: '1st & 2nd Period',
-      customInstructions: 'Aligned with official scheme of work',
-      apiKey: profile.geminiApiKey
+      customInstructions,
+      apiKey: providerConfig.apiKey,
+      providerConfig
     });
   };
 
@@ -203,6 +214,16 @@ export function App() {
             customSchemes={customSchemes}
             onOpenImportModal={handleOpenImportModal}
             onDeleteCustomScheme={handleDeleteCustomScheme}
+            profile={profile}
+            onBatchComplete={newNotes => {
+              const updated = getStoredNotes();
+              setNotes(updated);
+              if (newNotes.length > 0) {
+                setActiveNote(newNotes[0]);
+                setActiveTab('library');
+              }
+            }}
+            onOpenSettings={() => setIsSettingsOpen(true)}
           />
         )}
 
@@ -212,6 +233,8 @@ export function App() {
             note={activeNote}
             onSaveNote={handleSaveNote}
             onNewNote={handleNewNote}
+            profile={profile}
+            onOpenSettings={() => setIsSettingsOpen(true)}
           />
         )}
 
@@ -245,6 +268,7 @@ export function App() {
         initialClassLevel={importModalParams.classLevel}
         initialSubject={importModalParams.subject}
         initialTerm={importModalParams.term}
+        existingSchemes={customSchemes}
       />
 
       {/* Footer (Hidden during printing) */}

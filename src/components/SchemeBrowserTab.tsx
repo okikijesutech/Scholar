@@ -1,23 +1,40 @@
 import React, { useState } from 'react';
-import type { ClassLevel, Term, SchemeOfWork } from '../types';
+import type { ClassLevel, Term, SchemeOfWork, TeacherProfile, LessonNote } from '../types';
 import { NIGERIAN_CLASSES, SAMPLE_SCHEMES_OF_WORK, getSubjectsForClass } from '../data/curriculumData';
-import { BookOpen, Calendar, ArrowRight, Sparkles, UploadCloud, Trash2, CheckCircle2 } from 'lucide-react';
+import { BookOpen, Calendar, ArrowRight, Sparkles, UploadCloud, Trash2, CheckCircle2, Layers } from 'lucide-react';
+import { TermBatchModal } from './TermBatchModal';
 
 interface SchemeBrowserTabProps {
-  onSelectWeekToGenerate: (classLevel: ClassLevel, subject: string, term: Term, week: number, topic: string, subTopic: string) => void;
+  onSelectWeekToGenerate: (
+    classLevel: ClassLevel,
+    subject: string,
+    term: Term,
+    week: number,
+    topic: string,
+    subTopic: string,
+    objectivesSummary?: string,
+    suggestedMaterials?: string
+  ) => void;
   customSchemes: SchemeOfWork[];
   onOpenImportModal: (classLevel?: ClassLevel, subject?: string, term?: Term) => void;
   onDeleteCustomScheme: (id: string) => void;
+  profile: TeacherProfile;
+  onBatchComplete?: (notes: LessonNote[]) => void;
+  onOpenSettings?: () => void;
 }
 
 export const SchemeBrowserTab: React.FC<SchemeBrowserTabProps> = ({
   onSelectWeekToGenerate,
   customSchemes,
   onOpenImportModal,
-  onDeleteCustomScheme
+  onDeleteCustomScheme,
+  profile,
+  onBatchComplete,
+  onOpenSettings
 }) => {
   const [classLevel, setClassLevel] = useState<ClassLevel>('Primary 4');
   const [term, setTerm] = useState<Term>('1st Term');
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState<boolean>(false);
   const availableSubjects = getSubjectsForClass(classLevel);
   const [subject, setSubject] = useState<string>('Mathematics');
 
@@ -52,14 +69,26 @@ export const SchemeBrowserTab: React.FC<SchemeBrowserTabProps> = ({
           </p>
         </div>
 
-        {/* Upload Action Button */}
-        <button
-          onClick={() => onOpenImportModal(classLevel, subject, term)}
-          className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2.5 text-xs font-bold shadow-xs transition self-start md:self-auto cursor-pointer"
-        >
-          <UploadCloud className="w-4 h-4 text-emerald-300" />
-          <span>Import Scheme from PDF / Photo</span>
-        </button>
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
+          {currentScheme && (
+            <button
+              onClick={() => setIsBatchModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 text-xs font-bold shadow-xs transition cursor-pointer"
+            >
+              <Layers className="w-4 h-4 text-emerald-400" />
+              <span>Generate Entire Term ({currentScheme.weeks.length} Weeks)</span>
+            </button>
+          )}
+
+          <button
+            onClick={() => onOpenImportModal(classLevel, subject, term)}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2.5 text-xs font-bold shadow-xs transition cursor-pointer"
+          >
+            <UploadCloud className="w-4 h-4 text-emerald-300" />
+            <span>Import Scheme from PDF / Photo</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter Bar */}
@@ -185,7 +214,18 @@ export const SchemeBrowserTab: React.FC<SchemeBrowserTabProps> = ({
                 </div>
 
                 <button
-                  onClick={() => onSelectWeekToGenerate(classLevel, subject, term, item.week, item.topic, item.subTopic || '')}
+                  onClick={() =>
+                    onSelectWeekToGenerate(
+                      classLevel,
+                      subject,
+                      term,
+                      item.week,
+                      item.topic,
+                      item.subTopic || '',
+                      item.objectivesSummary,
+                      item.suggestedMaterials
+                    )
+                  }
                   className="w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 hover:bg-emerald-700 text-white px-3.5 py-2.5 text-xs font-semibold transition group-hover:bg-emerald-700 cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
@@ -225,6 +265,19 @@ export const SchemeBrowserTab: React.FC<SchemeBrowserTabProps> = ({
             </button>
           </div>
         </div>
+      )}
+
+      {currentScheme && (
+        <TermBatchModal
+          isOpen={isBatchModalOpen}
+          onClose={() => setIsBatchModalOpen(false)}
+          scheme={currentScheme}
+          profile={profile}
+          onBatchComplete={notes => {
+            onBatchComplete?.(notes);
+          }}
+          onOpenSettings={onOpenSettings}
+        />
       )}
     </div>
   );
