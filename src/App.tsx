@@ -8,6 +8,7 @@ import { LessonPreviewTab } from './components/LessonPreviewTab';
 import { SavedNotesTab } from './components/SavedNotesTab';
 import { SettingsModal } from './components/SettingsModal';
 import { SchemeImportModal } from './components/SchemeImportModal';
+import { AdminCollationModal } from './components/admin/AdminCollationModal';
 import type { LessonNote, TeacherProfile, ClassLevel, Term, SchemeOfWork, GenerationParams } from './types';
 import { generateLessonNote } from './services/aiGenerator';
 import { resolveActiveProviderConfig } from './services/ai/providers';
@@ -35,6 +36,8 @@ export function App() {
   const [customSchemes, setCustomSchemes] = useState<SchemeOfWork[]>(() => getCustomSchemes());
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
+  const [isAdminCollationOpen, setIsAdminCollationOpen] = useState<boolean>(false);
+  const [verifiedVersion, setVerifiedVersion] = useState<number>(0);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [importModalParams, setImportModalParams] = useState<{
     classLevel?: ClassLevel;
@@ -195,6 +198,7 @@ export function App() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onNewNote={handleNewNote}
         hasActiveNote={!!activeNote}
+        onOpenAdminCollation={() => setIsAdminCollationOpen(true)}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -210,6 +214,7 @@ export function App() {
 
         {activeTab === 'scheme' && (
           <SchemeBrowserTab
+            key={`scheme-${verifiedVersion}`}
             onSelectWeekToGenerate={handleSelectWeekToGenerate}
             customSchemes={customSchemes}
             onOpenImportModal={handleOpenImportModal}
@@ -269,6 +274,12 @@ export function App() {
         initialSubject={importModalParams.subject}
         initialTerm={importModalParams.term}
         existingSchemes={customSchemes}
+      />
+
+      <AdminCollationModal
+        isOpen={isAdminCollationOpen}
+        onClose={() => setIsAdminCollationOpen(false)}
+        onVerifiedSchemesUpdated={() => setVerifiedVersion(v => v + 1)}
       />
 
       {/* Footer (Hidden during printing) */}

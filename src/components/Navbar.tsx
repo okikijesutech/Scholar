@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Sparkles, FileText, FolderArchive, Settings, GraduationCap, PlusCircle } from 'lucide-react';
+import { BookOpen, Sparkles, FileText, FolderArchive, Settings, GraduationCap, PlusCircle, ShieldCheck } from 'lucide-react';
 
 export type TabType = 'generator' | 'scheme' | 'preview' | 'library';
 
@@ -10,6 +10,7 @@ interface NavbarProps {
   onOpenSettings: () => void;
   onNewNote: () => void;
   hasActiveNote: boolean;
+  onOpenAdminCollation?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -18,7 +19,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   savedNotesCount,
   onOpenSettings,
   onNewNote,
-  hasActiveNote
+  hasActiveNote,
+  onOpenAdminCollation
 }) => {
   return (
     <header className="no-print sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
@@ -106,7 +108,18 @@ export const Navbar: React.FC<NavbarProps> = ({
           </nav>
 
           {/* Right Action buttons */}
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
+            {onOpenAdminCollation && (
+              <button
+                onClick={onOpenAdminCollation}
+                title="Super Admin Curriculum Collation & State Verification"
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 text-xs font-semibold transition"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+                <span className="hidden md:inline">Admin Collation</span>
+              </button>
+            )}
+
             <button
               onClick={onNewNote}
               title="Create new blank note"

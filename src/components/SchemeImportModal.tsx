@@ -7,6 +7,7 @@ import {
   type ExtractionResult
 } from '../services/schemeExtractorService';
 import { resolveActiveProviderConfig } from '../services/ai/providers';
+import { getVerifiedStateScheme, NIGERIAN_STATES } from '../services/curriculumCollationService';
 import {
   X,
   UploadCloud,
@@ -53,6 +54,7 @@ export const SchemeImportModal: React.FC<SchemeImportModalProps> = ({
   const [term, setTerm] = useState<Term>(initialTerm);
   const availableSubjects = getSubjectsForClass(classLevel);
   const [subject, setSubject] = useState<string>(initialSubject || availableSubjects[0] || 'Mathematics');
+  const [selectedState, setSelectedState] = useState<string>(profile.state || 'Lagos');
 
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [scanError, setScanError] = useState<string | null>(null);
@@ -99,6 +101,7 @@ export const SchemeImportModal: React.FC<SchemeImportModalProps> = ({
   const existingMatchingScheme = existingSchemes.find(
     s => s.subject === subject && s.classLevel === classLevel && s.term === term
   );
+  const verifiedScheme = getVerifiedStateScheme(selectedState, classLevel, subject, term);
 
   const handleModalClose = () => {
     if (previewUrl) {
@@ -251,6 +254,10 @@ export const SchemeImportModal: React.FC<SchemeImportModalProps> = ({
       classLevel,
       term,
       weeks: finalWeeks,
+      state: selectedState,
+      curriculumType: 'state_unified',
+      verificationStatus: 'unverified',
+      uploaderCount: 1,
       provenance: {
         provider: activeConfig.provider,
         modelName: activeConfig.model,
@@ -290,8 +297,21 @@ export const SchemeImportModal: React.FC<SchemeImportModalProps> = ({
           {!isReviewing ? (
             /* Upload & Configuration Screen */
             <div className="space-y-5">
-              {/* Target Class/Subject/Term Selectors */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Target State/Class/Subject/Term Selectors */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">State</label>
+                  <select
+                    value={selectedState}
+                    onChange={e => setSelectedState(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-800 bg-white focus:border-emerald-600 focus:outline-none"
+                  >
+                    {NIGERIAN_STATES.map(st => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">Target Class</label>
                   <select
@@ -331,6 +351,40 @@ export const SchemeImportModal: React.FC<SchemeImportModalProps> = ({
                   </select>
                 </div>
               </div>
+
+              {/* Official Verified Scheme Found Banner */}
+              {verifiedScheme && (
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                      <CheckCircle className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs text-emerald-950">
+                          Official {selectedState} State Unified Scheme Available!
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-200 text-emerald-800">
+                          Verified
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-emerald-800">
+                        {verifiedScheme.weeks.length} weeks pre-verified by Super Admin. You don't need to photograph or scan your book!
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSchemeExtracted(verifiedScheme);
+                      handleModalClose();
+                    }}
+                    className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+                  >
+                    Load Verified {selectedState} Scheme
+                  </button>
+                </div>
+              )}
 
               {/* Upload Dropzone */}
               <div className="border-2 border-dashed border-slate-300 hover:border-emerald-600 rounded-2xl p-6 text-center transition bg-slate-50/50">

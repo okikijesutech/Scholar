@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import type { ClassLevel, Term, SchemeOfWork, TeacherProfile, LessonNote } from '../types';
 import { NIGERIAN_CLASSES, SAMPLE_SCHEMES_OF_WORK, getSubjectsForClass } from '../data/curriculumData';
-import { BookOpen, Calendar, ArrowRight, Sparkles, UploadCloud, Trash2, CheckCircle2, Layers } from 'lucide-react';
+import { BookOpen, Calendar, ArrowRight, Sparkles, UploadCloud, Trash2, CheckCircle2, Layers, ShieldCheck, MapPin } from 'lucide-react';
 import { TermBatchModal } from './TermBatchModal';
+import { getVerifiedStateScheme, NIGERIAN_STATES } from '../services/curriculumCollationService';
 
 interface SchemeBrowserTabProps {
   onSelectWeekToGenerate: (
@@ -32,6 +33,7 @@ export const SchemeBrowserTab: React.FC<SchemeBrowserTabProps> = ({
   onBatchComplete,
   onOpenSettings
 }) => {
+  const [selectedState, setSelectedState] = useState<string>(profile.state || 'Lagos');
   const [classLevel, setClassLevel] = useState<ClassLevel>('Primary 4');
   const [term, setTerm] = useState<Term>('1st Term');
   const [isBatchModalOpen, setIsBatchModalOpen] = useState<boolean>(false);
@@ -40,17 +42,20 @@ export const SchemeBrowserTab: React.FC<SchemeBrowserTabProps> = ({
 
   const normalizeSubject = (str: string) => str.toLowerCase().replace(/\s*\([a-z0-9&/ ]+\)/g, '').trim();
 
-  // Check custom schemes first, then preloaded NERDC schemes
+  // Check custom schemes first, then verified state schemes, then fallback preloaded NERDC schemes
   const customMatch = customSchemes.find(
     s => s.classLevel === classLevel && s.term === term && normalizeSubject(s.subject) === normalizeSubject(subject)
   );
+
+  const verifiedStateMatch = getVerifiedStateScheme(selectedState, classLevel, subject, term);
 
   const defaultMatch = SAMPLE_SCHEMES_OF_WORK.find(
     s => s.classLevel === classLevel && s.term === term && normalizeSubject(s.subject) === normalizeSubject(subject)
   );
 
-  const currentScheme = customMatch || defaultMatch;
+  const currentScheme = customMatch || verifiedStateMatch || defaultMatch;
   const isCustom = !!customMatch;
+  const isVerifiedState = !customMatch && !!verifiedStateMatch;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12">
@@ -94,6 +99,19 @@ export const SchemeBrowserTab: React.FC<SchemeBrowserTabProps> = ({
       {/* Filter Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
         <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5">
+            <MapPin className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
+            <select
+              value={selectedState}
+              onChange={e => setSelectedState(e.target.value)}
+              className="text-xs font-semibold text-slate-800 bg-transparent focus:outline-none cursor-pointer"
+            >
+              {NIGERIAN_STATES.map(st => (
+                <option key={st} value={st}>{st} State</option>
+              ))}
+            </select>
+          </div>
+
           <select
             value={classLevel}
             onChange={e => {
@@ -151,17 +169,55 @@ export const SchemeBrowserTab: React.FC<SchemeBrowserTabProps> = ({
             </button>
           </div>
         )}
+
+        {isVerifiedState && (
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full border border-emerald-300">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-700" />
+              Official {selectedState} State Scheme ({verifiedStateMatch?.uploaderCount || 3} Schools Consensus)
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Scheme Content */}
       {currentScheme ? (
         <div className="space-y-4">
+          {isVerifiedState && (
+            <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 flex items-center justify-between gap-3 text-xs text-emerald-950">
+              <div className="flex items-center gap-2.5">
+                <ShieldCheck className="w-5 h-5 text-emerald-700 shrink-0" />
+                <div>
+                  <p className="font-bold text-emerald-900">
+                    Official Unified {selectedState} State Syllabus Loaded
+                  </p>
+                  <p className="text-emerald-700 text-[11px]">
+                    Verified by Super Admin across multiple Nigerian schools in {selectedState}. Inspection-ready for state ministry evaluators.
+                  </p>
+                </div>
+              </div>
+              <span className="shrink-0 bg-emerald-700 text-white font-bold text-[10px] px-2.5 py-1 rounded-full shadow-xs">
+                Admin Verified
+              </span>
+            </div>
+          )}
+
           <div className="flex items-center justify-between px-2 text-sm text-slate-600 font-medium">
             <span>
               Showing {currentScheme.weeks.length} weeks breakdown for <strong className="text-slate-900">{subject}</strong> ({classLevel} - {term})
             </span>
-            <span className="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-semibold">
-              {isCustom ? 'Imported Document Scheme' : 'Official NERDC Syllabus'}
+            <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
+              isVerifiedState
+                ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                : isCustom
+                ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                : 'bg-slate-100 text-slate-700'
+            }`}>
+              {isVerifiedState
+                ? `Official ${selectedState} State Syllabus`
+                : isCustom
+                ? 'Imported Document Scheme'
+                : 'Official NERDC Syllabus'}
             </span>
           </div>
 

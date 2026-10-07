@@ -103,18 +103,29 @@ export interface SchemeWeek {
   suggestedMaterials: string;
 }
 
+export type VerificationStatus = 'unverified' | 'peer_confirmed' | 'admin_verified';
+export type CurriculumType = 'state_unified' | 'federal_nerdc' | 'school_custom';
+
 export interface SchemeOfWork {
   id: string;
   subject: string;
   classLevel: ClassLevel;
   term: Term;
   weeks: SchemeWeek[];
+  state?: string;
+  curriculumType?: CurriculumType;
+  verificationStatus?: VerificationStatus;
+  uploaderCount?: number;
+  confidenceScore?: number;
+  verifiedBy?: string;
+  verifiedAt?: string;
   provenance?: ProvenanceMetadata;
 }
 
 export interface TeacherProfile {
   schoolName: string;
   teacherName: string;
+  state?: string;
   defaultDuration: string;
   
   // Multi-Provider Settings

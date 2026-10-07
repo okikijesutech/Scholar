@@ -90,18 +90,47 @@ export const schemeWeekSchema = z.object({
   suggestedMaterials: z.string().default('')
 });
 
+export const nigerianStateSchema = z.enum([
+  'Lagos', 'Oyo', 'Ogun', 'Osun', 'Ondo', 'Ekiti',
+  'Rivers', 'Delta', 'Edo', 'Cross River', 'Akwa Ibom', 'Bayelsa',
+  'Abuja FCT', 'Kaduna', 'Kano', 'Katsina', 'Sokoto', 'Borno',
+  'Enugu', 'Anambra', 'Imo', 'Abia', 'Ebonyi',
+  'Kwara', 'Kogi', 'Benue', 'Plateau', 'Niger', 'Nasarawa',
+  'National (NERDC)'
+]);
+
+export const schemeVerificationStatusSchema = z.enum([
+  'unverified',
+  'peer_confirmed',
+  'admin_verified'
+]);
+
+export const schemeCurriculumTypeSchema = z.enum([
+  'state_unified',
+  'federal_nerdc',
+  'school_custom'
+]);
+
 export const schemeOfWorkSchema = z.object({
   id: z.string(),
   subject: z.string(),
   classLevel: z.string(),
   term: z.string(),
   weeks: z.array(schemeWeekSchema),
+  state: z.string().default('Lagos'),
+  curriculumType: schemeCurriculumTypeSchema.default('state_unified'),
+  verificationStatus: schemeVerificationStatusSchema.default('unverified'),
+  uploaderCount: z.number().default(1),
+  confidenceScore: z.number().default(1.0),
+  verifiedBy: z.string().optional(),
+  verifiedAt: z.string().optional(),
   provenance: provenanceMetadataSchema
 });
 
 export const teacherProfileSchema = z.object({
   schoolName: z.string().default(''),
   teacherName: z.string().default(''),
+  state: z.string().default('Lagos'),
   defaultDuration: z.string().default('40 Minutes'),
   activeProvider: aiProviderIdSchema.optional().default('gemini'),
   geminiApiKey: z.string().optional().default(''),
