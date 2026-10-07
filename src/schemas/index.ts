@@ -34,10 +34,13 @@ export const classroomActivitySchema = z.object({
   items: z.array(z.string()).optional()
 });
 
+export const provenanceSourceSchema = z.enum(['ai', 'offline_skeleton', 'book_scan', 'manual']);
+export const provenanceProviderSchema = z.enum(['gemini', 'claude', 'openai', 'offline_skeleton']);
+
 export const provenanceMetadataSchema = z.object({
-  provider: z.string().optional(),
+  provider: provenanceProviderSchema.optional(),
   modelName: z.string().optional(),
-  source: z.string().optional(),
+  source: provenanceSourceSchema.optional(),
   capturedAt: z.string().optional()
 }).optional();
 
@@ -46,8 +49,8 @@ export const lessonNoteSchema = z.object({
   schoolName: z.string().default(''),
   teacherName: z.string().default(''),
   subject: z.string(),
-  classLevel: z.string(),
-  term: z.string(),
+  classLevel: classLevelSchema,
+  term: termSchema,
   week: z.number(),
   date: z.string().default(''),
   duration: z.string().default('40 Minutes'),
@@ -114,14 +117,14 @@ export const schemeCurriculumTypeSchema = z.enum([
 export const schemeOfWorkSchema = z.object({
   id: z.string(),
   subject: z.string(),
-  classLevel: z.string(),
-  term: z.string(),
+  classLevel: classLevelSchema,
+  term: termSchema,
   weeks: z.array(schemeWeekSchema),
-  state: z.string().default('Lagos'),
-  curriculumType: schemeCurriculumTypeSchema.default('state_unified'),
-  verificationStatus: schemeVerificationStatusSchema.default('unverified'),
-  uploaderCount: z.number().default(1),
-  confidenceScore: z.number().default(1.0),
+  state: z.string().optional(),
+  curriculumType: schemeCurriculumTypeSchema.optional().default('state_unified'),
+  verificationStatus: schemeVerificationStatusSchema.optional().default('unverified'),
+  uploaderCount: z.number().optional().default(1),
+  confidenceScore: z.number().optional().default(1.0),
   verifiedBy: z.string().optional(),
   verifiedAt: z.string().optional(),
   provenance: provenanceMetadataSchema
@@ -130,7 +133,7 @@ export const schemeOfWorkSchema = z.object({
 export const teacherProfileSchema = z.object({
   schoolName: z.string().default(''),
   teacherName: z.string().default(''),
-  state: z.string().default('Lagos'),
+  state: z.string().optional(),
   defaultDuration: z.string().default('40 Minutes'),
   activeProvider: aiProviderIdSchema.optional().default('gemini'),
   geminiApiKey: z.string().optional().default(''),
@@ -201,3 +204,20 @@ export const studentPackSchema = z.object({
 
 export type QuizQuestion = z.infer<typeof quizQuestionSchema>;
 export type StudentPack = z.infer<typeof studentPackSchema>;
+
+export const backupBundleSchema = z.object({
+  version: z.number().default(1),
+  appName: z.string().default('LessonFlow'),
+  exportedAt: z.string(),
+  teacherProfile: teacherProfileSchema.optional(),
+  notes: z.array(lessonNoteSchema).default([]),
+  customSchemes: z.array(schemeOfWorkSchema).default([]),
+  verifiedStateSchemes: z.array(schemeOfWorkSchema).optional().default([]),
+  metadata: z.object({
+    notesCount: z.number().optional(),
+    schemesCount: z.number().optional(),
+    exportReason: z.string().optional()
+  }).optional()
+});
+
+export type BackupBundle = z.infer<typeof backupBundleSchema>;

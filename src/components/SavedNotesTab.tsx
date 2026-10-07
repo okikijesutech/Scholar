@@ -9,7 +9,8 @@ import {
   Eye, 
   PlusCircle, 
   Calendar,
-  School
+  School,
+  HardDriveDownload
 } from 'lucide-react';
 
 interface SavedNotesTabProps {
@@ -18,6 +19,7 @@ interface SavedNotesTabProps {
   onDuplicateNote: (note: LessonNote) => void;
   onDeleteNote: (id: string) => void;
   onNewNote: () => void;
+  onOpenBackup?: () => void;
 }
 
 export const SavedNotesTab: React.FC<SavedNotesTabProps> = ({
@@ -25,7 +27,8 @@ export const SavedNotesTab: React.FC<SavedNotesTabProps> = ({
   onOpenNote,
   onDuplicateNote,
   onDeleteNote,
-  onNewNote
+  onNewNote,
+  onOpenBackup
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClass, setFilterClass] = useState<string>('all');
@@ -57,13 +60,26 @@ export const SavedNotesTab: React.FC<SavedNotesTabProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={onNewNote}
-          className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-5 py-2.5 text-xs font-bold shadow-xs transition self-start sm:self-auto"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>Write New Lesson Note</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+          {onOpenBackup && (
+            <button
+              onClick={onOpenBackup}
+              title="Backup notes or restore from file"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2.5 text-xs font-bold transition shadow-xs cursor-pointer"
+            >
+              <HardDriveDownload className="w-4 h-4 text-emerald-700" />
+              <span>Backup &amp; Restore</span>
+            </button>
+          )}
+
+          <button
+            onClick={onNewNote}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-5 py-2.5 text-xs font-bold shadow-xs transition cursor-pointer"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Write New Lesson Note</span>
+          </button>
+        </div>
       </div>
 
       {/* Search & Filter Toolbar */}

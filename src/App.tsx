@@ -9,6 +9,7 @@ import { SavedNotesTab } from './components/SavedNotesTab';
 import { SettingsModal } from './components/SettingsModal';
 import { SchemeImportModal } from './components/SchemeImportModal';
 import { AdminCollationModal } from './components/admin/AdminCollationModal';
+import { BackupModal } from './components/backup/BackupModal';
 import type { LessonNote, TeacherProfile, ClassLevel, Term, SchemeOfWork, GenerationParams } from './types';
 import { generateLessonNote } from './services/aiGenerator';
 import { resolveActiveProviderConfig } from './services/ai/providers';
@@ -37,6 +38,7 @@ export function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   const [isAdminCollationOpen, setIsAdminCollationOpen] = useState<boolean>(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState<boolean>(false);
   const [verifiedVersion, setVerifiedVersion] = useState<number>(0);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [importModalParams, setImportModalParams] = useState<{
@@ -189,6 +191,21 @@ export function App() {
     setActiveTab('generator');
   };
 
+  const handleDataRestored = () => {
+    const updatedNotes = getStoredNotes();
+    const updatedSchemes = getCustomSchemes();
+    const updatedProfile = getTeacherProfile();
+    setNotes(updatedNotes);
+    setCustomSchemes(updatedSchemes);
+    setProfile(updatedProfile);
+    if (updatedNotes.length > 0) {
+      setActiveNote(updatedNotes[0]);
+    } else {
+      setActiveNote(null);
+    }
+    setVerifiedVersion(v => v + 1);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
       <Navbar
@@ -253,6 +270,7 @@ export function App() {
             onDuplicateNote={handleDuplicateNote}
             onDeleteNote={handleDeleteNote}
             onNewNote={handleNewNote}
+            onOpenBackup={() => setIsBackupModalOpen(true)}
           />
         )}
       </main>
@@ -280,6 +298,14 @@ export function App() {
         isOpen={isAdminCollationOpen}
         onClose={() => setIsAdminCollationOpen(false)}
         onVerifiedSchemesUpdated={() => setVerifiedVersion(v => v + 1)}
+      />
+
+      <BackupModal
+        isOpen={isBackupModalOpen}
+        onClose={() => setIsBackupModalOpen(false)}
+        onDataRestored={handleDataRestored}
+        currentNotesCount={notes.length}
+        currentSchemesCount={customSchemes.length}
       />
 
       {/* Footer (Hidden during printing) */}
