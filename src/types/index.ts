@@ -66,10 +66,14 @@ export interface LessonNote {
   assignment: string;
   keyScriptureOrCoreRule?: string; // e.g. Matthew 4:10 or Golden Rule / Core Theorem
   
-  // Inspection & Remarks
+  // Inspection & Remarks (Left blank/pending until actual classroom presentation and HOD inspection)
   teacherRemarks?: string;
   hodRemarks?: string;
   
+  // Transparency & Origin Metadata
+  isOfflineDraft?: boolean;
+  generationError?: string;
+
   createdAt: string;
   updatedAt: string;
 }
@@ -95,4 +99,19 @@ export interface TeacherProfile {
   teacherName: string;
   geminiApiKey?: string;
   defaultDuration: string;
+}
+
+export interface GenerationParams {
+  schoolName: string;
+  teacherName: string;
+  subject: string;
+  classLevel: ClassLevel;
+  term: Term;
+  week: number;
+  topic: string;
+  subTopic?: string;
+  duration?: string;
+  period?: string;
+  customInstructions?: string;
+  apiKey?: string;
 }

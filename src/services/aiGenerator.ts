@@ -1,25 +1,11 @@
-import type { ClassLevel, LessonNote, Term } from '../types';
+import type { LessonNote, GenerationParams } from '../types';
 import { NIGERIAN_CLASSES } from '../data/curriculumData';
 import { callGeminiAPI } from './ai/geminiClient';
 import { generateLocalLessonNote } from './templates/offlineGenerator';
 import { categorizeSubject, type SubjectCategory } from './templates/subjectCategories';
 
-export interface GenerationParams {
-  schoolName: string;
-  teacherName: string;
-  subject: string;
-  classLevel: ClassLevel;
-  term: Term;
-  week: number;
-  topic: string;
-  subTopic?: string;
-  duration?: string;
-  period?: string;
-  customInstructions?: string;
-  apiKey?: string;
-}
-
-export { categorizeSubject, type SubjectCategory };
+export type { GenerationParams, SubjectCategory };
+export { categorizeSubject };
 
 export async function generateLessonNote(params: GenerationParams): Promise<LessonNote> {
   const {
@@ -33,15 +19,21 @@ export async function generateLessonNote(params: GenerationParams): Promise<Less
   const avgAge = classInfo ? classInfo.avgAge : '10 - 12 years';
   const effectiveSubTopic = subTopic.trim() || `Fundamentals of ${topic}`;
 
+  let generationError: string | undefined;
+
   // If API key is provided, attempt live Gemini API call
   if (apiKey && apiKey.trim().length > 10) {
     try {
-      return await callGeminiAPI(params, avgAge, effectiveSubTopic);
-    } catch (err) {
+      const note = await callGeminiAPI(params, avgAge, effectiveSubTopic);
+      // Remove any unwanted pre-filled HOD remarks from AI response
+      note.hodRemarks = '';
+      return note;
+    } catch (err: any) {
       console.warn('Gemini API call failed, falling back to local curriculum generator:', err);
+      generationError = `Gemini AI service unavailable (${err?.message || 'Check key or internet connection'}). Generated using offline NERDC curriculum template.`;
     }
   }
 
   // Built-in intelligent local generator (Offline-capable)
-  return generateLocalLessonNote(params, avgAge, effectiveSubTopic);
+  return generateLocalLessonNote(params, avgAge, effectiveSubTopic, generationError);
 }
