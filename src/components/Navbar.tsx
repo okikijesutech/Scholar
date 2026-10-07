@@ -32,7 +32,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-slate-900 tracking-tight text-base sm:text-lg">
-                  <span className="hidden xs:inline">NaijaLesson</span><span className="text-emerald-700">Plan</span>
+                  NaijaLesson<span className="text-emerald-700">Plan</span>
                 </span>
                 <span className="hidden lg:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
                   NERDC Standard

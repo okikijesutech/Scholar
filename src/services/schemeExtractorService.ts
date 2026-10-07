@@ -1,4 +1,5 @@
 import type { SchemeOfWork, SchemeWeek, ClassLevel, Term } from '../types';
+import { resolveGeminiModel } from './ai/geminiClient';
 
 export interface ExtractionResult {
   scheme: SchemeOfWork;
@@ -70,83 +71,84 @@ You MUST respond strictly with valid JSON conforming to this structure (no markd
 }
 `;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-  
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
+  const primaryModel = await resolveGeminiModel(apiKey);
+  const candidateModels = Array.from(new Set([
+    primaryModel,
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-flash-002',
+    'gemini-1.5-flash-001'
+  ]));
+
+  let textOutput: string | null = null;
+  let lastError: Error | null = null;
+
+  for (const model of candidateModels) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
             {
-              inlineData: {
-                mimeType: mimeType,
-                data: base64Data
-              }
-            },
-            {
-              text: prompt
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: base64Data
+                  }
+                },
+                {
+                  text: prompt
+                }
+              ]
             }
-          ]
-        }
-      ],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.2
+          ],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: 0.2
+          }
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        textOutput = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (textOutput) break;
+      } else {
+        const errorText = await response.text();
+        lastError = new Error(`Extraction failed on ${model} (${response.status}): ${errorText}`);
       }
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Extraction failed (${response.status}): ${errorText}`);
+    } catch (e: any) {
+      lastError = e;
+    }
   }
 
-  const data = await response.json();
-  const textOutput = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!textOutput) {
-    throw new Error('No content returned from the document scanner.');
+    throw lastError || new Error('No content returned from the document scanner.');
   }
 
-  const parsed = JSON.parse(textOutput);
-
-  // Validate and normalize weeks
-  const rawWeeks = Array.isArray(parsed.weeks) ? parsed.weeks : [];
-  const normalizedWeeks: SchemeWeek[] = rawWeeks.map((w: any, index: number) => ({
-    week: Number(w.week) || (index + 1),
-    topic: String(w.topic || `Week ${index + 1} Topic`),
-    subTopic: String(w.subTopic || `General fundamentals and practicals`),
-    objectivesSummary: String(w.objectivesSummary || `Students should understand core principles of ${w.topic || 'the topic'}.`),
-    suggestedMaterials: String(w.suggestedMaterials || `Chalkboard, charts, and locally available realia.`)
-  }));
-
-  const detectedClass: ClassLevel = isValidClass(parsed.classLevel) ? parsed.classLevel : fallbackClass;
-  const detectedTerm: Term = isValidTerm(parsed.term) ? parsed.term : fallbackTerm;
-  const detectedSubject: string = parsed.subject || fallbackSubject;
+  const cleanedJson = textOutput.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+  const parsed = JSON.parse(cleanedJson);
 
   const scheme: SchemeOfWork = {
-    id: `scheme-extracted-${Date.now()}`,
-    subject: detectedSubject,
-    classLevel: detectedClass,
-    term: detectedTerm,
-    weeks: normalizedWeeks
+    id: `scheme-${Date.now()}`,
+    subject: parsed.subject || fallbackSubject,
+    classLevel: (parsed.classLevel as ClassLevel) || fallbackClass,
+    term: (parsed.term as Term) || fallbackTerm,
+    weeks: Array.isArray(parsed.weeks) ? parsed.weeks.map((w: any, idx: number) => ({
+      week: Number(w.week) || idx + 1,
+      topic: String(w.topic || `Week ${idx + 1} Topic`),
+      subTopic: String(w.subTopic || ''),
+      objectivesSummary: String(w.objectivesSummary || 'General understanding of the weekly concept.'),
+      suggestedMaterials: String(w.suggestedMaterials || 'Chalkboard, charts, textbooks.')
+    })) : []
   };
 
   return {
     scheme,
     sourceFileName: file.name
   };
-}
-
-function isValidClass(c: any): c is ClassLevel {
-  const valid = [
-    'Primary 1', 'Primary 2', 'Primary 3', 'Primary 4', 'Primary 5', 'Primary 6',
-    'JSS 1', 'JSS 2', 'JSS 3', 'SSS 1', 'SSS 2', 'SSS 3'
-  ];
-  return typeof c === 'string' && valid.includes(c);
-}
-
-function isValidTerm(t: any): t is Term {
-  return t === '1st Term' || t === '2nd Term' || t === '3rd Term';
 }

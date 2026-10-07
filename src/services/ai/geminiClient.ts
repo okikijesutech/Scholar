@@ -10,6 +10,59 @@ import {
   generateDefaultSteps
 } from '../templates/subjectKnowledgeBase';
 
+let cachedModelName: string | null = null;
+
+// Dynamically discover which Gemini model is active and available for the user's API key
+export async function resolveGeminiModel(apiKey: string): Promise<string> {
+  if (cachedModelName) return cachedModelName;
+
+  try {
+    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    if (listRes.ok) {
+      const data = await listRes.json();
+      const models = data.models || [];
+
+      const priorityOrder = [
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-flash-002',
+        'gemini-1.5-flash-001',
+        'gemini-1.5-flash',
+        'gemini-2.0-flash-lite',
+        'gemini-1.5-pro',
+        'gemini-pro'
+      ];
+
+      for (const target of priorityOrder) {
+        const found = models.find((m: any) =>
+          m.name === `models/${target}` &&
+          (m.supportedGenerationMethods?.includes('generateContent') || !m.supportedGenerationMethods)
+        );
+        if (found) {
+          cachedModelName = target;
+          return cachedModelName;
+        }
+      }
+
+      // If priority didn't match, pick any model supporting generateContent
+      const candidate = models.find((m: any) =>
+        (m.supportedGenerationMethods?.includes('generateContent') || !m.supportedGenerationMethods) &&
+        !m.name.includes('embedding')
+      );
+      if (candidate) {
+        const picked = candidate.name.replace(/^models\//, '');
+        cachedModelName = picked;
+        return picked;
+      }
+    }
+  } catch (err) {
+    console.warn('Could not query available Gemini models dynamically:', err);
+  }
+
+  return 'gemini-2.5-flash';
+}
+
 export async function callGeminiAPI(
   params: GenerationParams,
   avgAge: string,
@@ -18,12 +71,16 @@ export async function callGeminiAPI(
   const { schoolName, teacherName, subject, classLevel, term, week, topic, duration, period, customInstructions, apiKey } = params;
   const category = categorizeSubject(subject);
 
+  if (!apiKey) {
+    throw new Error('API key is required for Gemini AI calls');
+  }
+
   const prompt = `
 You are a senior Nigerian curriculum expert and educational supervisor for SUBEB and the Federal Ministry of Education.
 Write a comprehensive, in-depth, inspection-ready Nigerian Lesson Note for a school teacher.
 
 Context:
-- School: "${schoolName || 'Federal Government Model College'}"
+- School: "${schoolName || 'Community Model School'}"
 - Teacher: "${teacherName || 'Subject Teacher'}"
 - Subject: "${subject}" (Subject Domain: ${category})
 - Class Level: "${classLevel}"
@@ -44,30 +101,30 @@ Strict Requirements:
    - For Sciences: Include scientific definitions, principles, lab/experimental steps, and Nigerian environmental applications (e.g. malaria, crude oil, Kainji dam, soil types).
    - For Languages: Include grammar rules, sentence structures, oral/spelling drills, common errors in Nigerian English, and reading passages.
    - For CRS/IRS: Include scriptural narratives, meaning of key passages, and resisting youth temptations.
-   - For Commercial/Economics: Include economic laws, consumer behaviors, and Nigerian trade contexts (markets like Tejuosho, Bodija, Alaba).
+   - For Commercial/Economics: Include economic laws, consumer behaviors, and Nigerian trade contexts.
    - For Civic/Social: Include civic duties, rule of law, anti-corruption, and patriotism.
    Each section MUST have:
    - "sectionNumber": number
-   - "heading": clear title
-   - "body": thorough paragraphs explaining the concept
-   - "subPoints": (optional array of bullet points)
-   - "lessonTakeaway": (practical takeaway or golden rule)
-4. CLASSROOM ACTIVITIES: 3 detailed classroom activities:
-   - Activity 1: Group Discussion / Work with clear tasks per group
-   - Activity 2: Reading / Specimen Investigation / Problem-Solving Drill
-   - Activity 3: Class Discussion linking the topic to real-life contemporary Nigerian pupil experiences (e.g. peer pressure, exam malpractice, honesty, daily market commerce, environmental sanitation).
-5. Step-by-step presentation: 4 distinct teaching phases (Intro/Hook, Concept Explanation, Guided Practice, Group Work/Application) with Teacher and Student activities.
-6. Formative Evaluation: 8 to 11 thorough evaluation questions testing recall, understanding, and application.
-7. Assignment: Specific homework tasks.
-8. Key Scripture or Core Rule: Key Bible verse (if CRS), ethical maxim, mathematical theorem, or scientific law.
+   - "heading": string
+   - "body": string (in-depth paragraph explanations)
+   - "subPoints": string[] (3 to 5 detailed bullet points)
+   - "lessonTakeaway": string (1-2 sentence core lesson or moral takeaway)
+4. Classroom Activities: 3 distinct hands-on activities:
+   - Activity 1: Group discussion / problem-solving.
+   - Activity 2: Textbook reading or chalkboard relay.
+   - Activity 3: Application to everyday Nigerian challenges.
+5. Instructional Steps: 4 steps with teacherActivity and studentActivity.
+6. Formative Evaluation: 6 to 10 questions testing recall, understanding, and application.
+7. Homework Assignment: 3 to 4 detailed questions.
+8. Core Scripture or Principle: Exact verse or core rule.
+9. Leave "hodRemarks" empty ("") for official weekly supervisory inspection.
 
-Respond strictly with valid JSON conforming to this structure (no markdown fences, just pure JSON):
+Respond strictly with valid JSON conforming to this schema (no markdown formatting, no code blocks):
 {
   "references": "...",
   "behavioralObjectives": ["...", "..."],
   "previousKnowledge": "...",
   "instructionalMaterials": ["...", "..."],
-  "referenceBooks": ["...", "..."],
   "contentSections": [
     {
       "sectionNumber": 1,
@@ -79,7 +136,7 @@ Respond strictly with valid JSON conforming to this structure (no markdown fence
   ],
   "classroomActivities": [
     {
-      "title": "Activity 1 – ...",
+      "title": "...",
       "description": "...",
       "items": ["...", "..."]
     }
@@ -97,40 +154,66 @@ Respond strictly with valid JSON conforming to this structure (no markdown fence
   "summary": "...",
   "assignment": "...",
   "keyScriptureOrCoreRule": "...",
-  "teacherRemarks": "..."
+  "teacherRemarks": ""
 }
 `;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.7
+  const primaryModel = await resolveGeminiModel(apiKey);
+  const candidateModels = Array.from(new Set([
+    primaryModel,
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-flash-002',
+    'gemini-1.5-flash-001'
+  ]));
+
+  let textOutput: string | null = null;
+  let lastError: Error | null = null;
+
+  for (const model of candidateModels) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: 0.7
+          }
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        textOutput = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (textOutput) {
+          cachedModelName = model;
+          break;
+        }
+      } else {
+        const errorText = await response.text();
+        lastError = new Error(`Gemini API (${model}) Error ${response.status}: ${errorText}`);
       }
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API Error: ${response.status} - ${errorText}`);
+    } catch (e: any) {
+      lastError = e;
+    }
   }
 
-  const data = await response.json();
-  const textOutput = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!textOutput) {
-    throw new Error('No content returned from Gemini');
+    throw lastError || new Error('No content returned from Gemini API');
   }
 
-  const parsed = JSON.parse(textOutput);
+  // Clean any backticks if returned
+  const cleanedJson = textOutput.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+  const parsed = JSON.parse(cleanedJson);
 
   return {
     id: `note-${Date.now()}`,
-    schoolName: schoolName || 'Community Secondary School',
-    teacherName: teacherName || 'Subject Teacher',
+    schoolName: schoolName || '',
+    teacherName: teacherName || '',
     subject,
     classLevel,
     term,
@@ -163,8 +246,8 @@ Respond strictly with valid JSON conforming to this structure (no markdown fence
     summary: parsed.summary || `The teacher reviews the main principles of ${effectiveSubTopic} and emphasizes key takeaways.`,
     assignment: parsed.assignment || `Complete the exercise questions from the recommended ${subject} textbook in your homework exercise books.`,
     keyScriptureOrCoreRule: parsed.keyScriptureOrCoreRule || generateSubjectSpecificCoreRule(subject, topic),
-    teacherRemarks: parsed.teacherRemarks || 'The lesson was successfully conducted with active pupil participation.',
-    hodRemarks: 'Inspected and verified in accordance with the NERDC Scheme of Work. Approved.',
+    teacherRemarks: parsed.teacherRemarks || '',
+    hodRemarks: '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
