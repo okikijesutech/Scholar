@@ -2,31 +2,30 @@ import type { LessonNote, TeacherProfile, SchemeOfWork } from '../types';
 import { SAMPLE_LESSON_NOTES } from '../data/sampleNotes';
 
 const STORAGE_KEY_NOTES = 'naija_lesson_notes_v1';
+const STORAGE_KEY_SEEDED = 'naija_notes_seeded_v1';
 const STORAGE_KEY_PROFILE = 'naija_teacher_profile_v1';
 const STORAGE_KEY_CUSTOM_SCHEMES = 'naija_custom_schemes_v1';
 
 export function getStoredNotes(): LessonNote[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_NOTES);
-    if (!raw) {
+    const hasSeeded = localStorage.getItem(STORAGE_KEY_SEEDED);
+
+    if (!raw && !hasSeeded) {
       localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(SAMPLE_LESSON_NOTES));
+      localStorage.setItem(STORAGE_KEY_SEEDED, 'true');
       return SAMPLE_LESSON_NOTES;
     }
-    const parsed: LessonNote[] = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return SAMPLE_LESSON_NOTES;
 
-    // Ensure sample-crs-jss2-week4 exists in notes
-    const hasCrs = parsed.some(n => n.id === 'sample-crs-jss2-week4');
-    if (!hasCrs) {
-      const merged = [SAMPLE_LESSON_NOTES[0], ...parsed];
-      localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(merged));
-      return merged;
-    }
+    if (!raw) return [];
+
+    const parsed: LessonNote[] = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
 
     return parsed;
   } catch (e) {
     console.error('Failed to parse notes from storage:', e);
-    return SAMPLE_LESSON_NOTES;
+    return [];
   }
 }
 
@@ -60,7 +59,7 @@ export function duplicateNote(note: LessonNote): LessonNote {
   const newNote: LessonNote = {
     ...note,
     id: `note-${Date.now()}`,
-    week: note.week < 12 ? note.week + 1 : note.week,
+    topic: `${note.topic} (Copy)`,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -117,9 +116,10 @@ export function getTeacherProfile(): TeacherProfile {
     console.error('Failed to load profile:', e);
   }
 
+  // Blank by default - prompts user to configure their real school and name
   return {
-    schoolName: 'Federal Government College, Lagos',
-    teacherName: 'Mr. Babatunde Alabi',
+    schoolName: '',
+    teacherName: '',
     geminiApiKey: '',
     defaultDuration: '40 Minutes'
   };
