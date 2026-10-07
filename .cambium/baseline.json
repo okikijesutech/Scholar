@@ -1,0 +1,125 @@
+{
+  "createdAt": "2026-10-07T10:34:28.042Z",
+  "cambiumVersion": "1.4.2",
+  "files": {
+    "vite.config.ts": {
+      "lines": 12,
+      "cyclomaticComplexity": 1,
+      "fanIn": 0,
+      "exportCount": 1,
+      "touchCount": 1
+    },
+    "src/App.tsx": {
+      "lines": 260,
+      "cyclomaticComplexity": 14,
+      "fanIn": 1,
+      "exportCount": 2,
+      "touchCount": 1
+    },
+    "src/main.tsx": {
+      "lines": 11,
+      "cyclomaticComplexity": 1,
+      "fanIn": 0,
+      "exportCount": 0,
+      "touchCount": 1
+    },
+    "src/components/GeneratorTab.tsx": {
+      "lines": 418,
+      "cyclomaticComplexity": 12,
+      "fanIn": 1,
+      "exportCount": 1,
+      "touchCount": 1
+    },
+    "src/components/LessonPreviewTab.tsx": {
+      "lines": 715,
+      "cyclomaticComplexity": 43,
+      "fanIn": 1,
+      "exportCount": 1,
+      "touchCount": 1
+    },
+    "src/components/Navbar.tsx": {
+      "lines": 128,
+      "cyclomaticComplexity": 7,
+      "fanIn": 1,
+      "exportCount": 2,
+      "touchCount": 1
+    },
+    "src/components/SavedNotesTab.tsx": {
+      "lines": 216,
+      "cyclomaticComplexity": 11,
+      "fanIn": 1,
+      "exportCount": 1,
+      "touchCount": 1
+    },
+    "src/components/SchemeBrowserTab.tsx": {
+      "lines": 230,
+      "cyclomaticComplexity": 19,
+      "fanIn": 1,
+      "exportCount": 1,
+      "touchCount": 1
+    },
+    "src/components/SchemeImportModal.tsx": {
+      "lines": 340,
+      "cyclomaticComplexity": 25,
+      "fanIn": 1,
+      "exportCount": 1,
+      "touchCount": 1
+    },
+    "src/components/SettingsModal.tsx": {
+      "lines": 146,
+      "cyclomaticComplexity": 4,
+      "fanIn": 1,
+      "exportCount": 1,
+      "touchCount": 1
+    },
+    "src/data/curriculumData.ts": {
+      "lines": 541,
+      "cyclomaticComplexity": 5,
+      "fanIn": 4,
+      "exportCount": 8,
+      "touchCount": 1
+    },
+    "src/data/sampleNotes.ts": {
+      "lines": 435,
+      "cyclomaticComplexity": 1,
+      "fanIn": 2,
+      "exportCount": 1,
+      "touchCount": 1
+    },
+    "src/services/aiGenerator.ts": {
+      "lines": 834,
+      "cyclomaticComplexity": 93,
+      "fanIn": 1,
+      "exportCount": 4,
+      "touchCount": 1
+    },
+    "src/services/exportService.ts": {
+      "lines": 502,
+      "cyclomaticComplexity": 29,
+      "fanIn": 2,
+      "exportCount": 2,
+      "touchCount": 1
+    },
+    "src/services/schemeExtractorService.ts": {
+      "lines": 153,
+      "cyclomaticComplexity": 22,
+      "fanIn": 1,
+      "exportCount": 3,
+      "touchCount": 1
+    },
+    "src/services/storageService.ts": {
+      "lines": 135,
+      "cyclomaticComplexity": 21,
+      "fanIn": 1,
+      "exportCount": 9,
+      "touchCount": 1
+    },
+    "src/types/index.ts": {
+      "lines": 99,
+      "cyclomaticComplexity": 1,
+      "fanIn": 13,
+      "exportCount": 10,
+      "touchCount": 1
+    }
+  }
+}
