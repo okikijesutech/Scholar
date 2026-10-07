@@ -7,7 +7,7 @@ import { BookOpen, Sparkles } from 'lucide-react';
 
 interface LessonPreviewTabProps {
   note: LessonNote | null;
-  onSaveNote: (note: LessonNote) => void;
+  onSaveNote: (note: LessonNote) => boolean | void;
   onNewNote: () => void;
 }
 
@@ -21,10 +21,6 @@ export const LessonPreviewTab: React.FC<LessonPreviewTabProps> = ({
   const [copiedSuccess, setCopiedSuccess] = useState<boolean>(false);
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [isExportingDocx, setIsExportingDocx] = useState<boolean>(false);
-
-  React.useEffect(() => {
-    setNote(initialNote);
-  }, [initialNote]);
 
   if (!note) {
     return (
@@ -77,9 +73,11 @@ export const LessonPreviewTab: React.FC<LessonPreviewTabProps> = ({
   };
 
   const handleSave = () => {
-    onSaveNote(note);
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2000);
+    const result = onSaveNote(note);
+    if (result !== false) {
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 2000);
+    }
   };
 
   return (

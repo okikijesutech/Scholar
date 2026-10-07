@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { LessonNote, ClassLevel, Term } from '../types';
+import type { LessonNote } from '../types';
 import { exportToDocx } from '../services/exportService';
 import { 
   Search, 
@@ -9,7 +9,6 @@ import {
   Eye, 
   PlusCircle, 
   Calendar,
-  Layers,
   School
 } from 'lucide-react';
 

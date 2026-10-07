@@ -1,4 +1,4 @@
-import type { SchemeOfWork, SchemeWeek, ClassLevel, Term } from '../types';
+import type { SchemeOfWork, ClassLevel, Term } from '../types';
 import { resolveGeminiModel } from './ai/geminiClient';
 
 export interface ExtractionResult {
@@ -86,10 +86,13 @@ You MUST respond strictly with valid JSON conforming to this structure (no markd
 
   for (const model of candidateModels) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
       const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey
+        },
         body: JSON.stringify({
           contents: [
             {
@@ -121,8 +124,8 @@ You MUST respond strictly with valid JSON conforming to this structure (no markd
         const errorText = await response.text();
         lastError = new Error(`Extraction failed on ${model} (${response.status}): ${errorText}`);
       }
-    } catch (e: any) {
-      lastError = e;
+    } catch (e: unknown) {
+      lastError = e instanceof Error ? e : new Error(String(e));
     }
   }
 
@@ -130,8 +133,18 @@ You MUST respond strictly with valid JSON conforming to this structure (no markd
     throw lastError || new Error('No content returned from the document scanner.');
   }
 
-  const cleanedJson = textOutput.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-  const parsed = JSON.parse(cleanedJson);
+  const cleanedJson = textOutput.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/i, '').trim();
+  let parsed: any;
+  try {
+    parsed = JSON.parse(cleanedJson);
+  } catch {
+    const match = cleanedJson.match(/\{[\s\S]*\}/);
+    if (match) {
+      parsed = JSON.parse(match[0]);
+    } else {
+      throw new Error('Scanner returned invalid response format.');
+    }
+  }
 
   const scheme: SchemeOfWork = {
     id: `scheme-${Date.now()}`,

@@ -30,7 +30,7 @@ export async function exportToDocx(note: LessonNote): Promise<void> {
       if (section.subPoints && section.subPoints.length > 0) {
         section.subPoints.forEach((pt) => {
           // Remove manual '• ' so Word's native bullet does not double-render
-          const cleanPt = pt.replace(/^[•\-\*]\s*/, '');
+          const cleanPt = pt.replace(/^[•\-*]\s*/, '');
           contentChildren.push(
             new Paragraph({
               text: cleanPt,
@@ -80,7 +80,7 @@ export async function exportToDocx(note: LessonNote): Promise<void> {
 
       if (act.items && act.items.length > 0) {
         act.items.forEach((item) => {
-          const cleanItem = item.replace(/^[•\-\*]\s*/, '');
+          const cleanItem = item.replace(/^[•\-*]\s*/, '');
           contentChildren.push(
             new Paragraph({
               text: cleanItem,
@@ -237,7 +237,7 @@ export async function exportToDocx(note: LessonNote): Promise<void> {
             spacing: { after: 60 }
           }),
           ...note.instructionalMaterials.map((mat) => {
-            const cleanMat = mat.replace(/^[•\-\*]\s*/, '');
+            const cleanMat = mat.replace(/^[•\-*]\s*/, '');
             return new Paragraph({
               text: cleanMat,
               spacing: { after: 50 },

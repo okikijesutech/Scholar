@@ -1,4 +1,4 @@
-import type { ClassLevel, SchemeOfWork, Term } from '../types';
+import type { ClassLevel, SchemeOfWork } from '../types';
 
 export const NIGERIAN_CLASSES: { id: ClassLevel; name: string; category: 'primary' | 'jss' | 'sss'; avgAge: string }[] = [
   { id: 'Primary 1', name: 'Primary 1 (Basic 1)', category: 'primary', avgAge: '5 - 6 years' },

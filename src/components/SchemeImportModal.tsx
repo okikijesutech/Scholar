@@ -11,7 +11,6 @@ import {
   CheckCircle, 
   AlertCircle, 
   Settings,
-  Calendar,
   BookOpen
 } from 'lucide-react';
 
@@ -47,19 +46,21 @@ export const SchemeImportModal: React.FC<SchemeImportModalProps> = ({
   const [scanError, setScanError] = useState<string | null>(null);
   const [extractedScheme, setExtractedScheme] = useState<SchemeOfWork | null>(null);
 
-  // Synchronize modal with caller's active class, subject, and term
-  useEffect(() => {
+  const [prevIsOpen, setPrevIsOpen] = useState<boolean>(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen) {
+      const activeClass = initialClassLevel || classLevel;
       if (initialClassLevel) setClassLevel(initialClassLevel);
       if (initialTerm) setTerm(initialTerm);
-      const subjs = getSubjectsForClass(initialClassLevel || classLevel);
+      const subjs = getSubjectsForClass(activeClass);
       if (initialSubject && subjs.includes(initialSubject)) {
         setSubject(initialSubject);
       } else {
         setSubject(subjs[0] || 'Mathematics');
       }
     }
-  }, [isOpen, initialClassLevel, initialSubject, initialTerm]);
+  }
 
   // Clean up Object URL to prevent memory leaks
   useEffect(() => {

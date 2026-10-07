@@ -1,5 +1,5 @@
-import type { ClassLevel, LessonNote, Term, GenerationParams } from '../../types';
-import { NIGERIAN_CLASSES, getTextbooksForSubject } from '../../data/curriculumData';
+import type { LessonNote, GenerationParams } from '../../types';
+import { getTextbooksForSubject } from '../../data/curriculumData';
 import { 
   generateSubjectSpecificContentSections, 
   generateSubjectSpecificClassroomActivities, 

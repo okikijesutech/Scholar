@@ -9,6 +9,7 @@ export type SubjectCategory =
 
 export function categorizeSubject(subject: string): SubjectCategory {
   const s = subject.toLowerCase();
+  if (s.includes('home economics')) return 'vocational';
   if (s.includes('math') || s.includes('arithmetic') || s.includes('further')) return 'mathematics';
   if (s.includes('science') || s.includes('biology') || s.includes('chemistry') || s.includes('physics') || s.includes('agricultural') || s.includes('phe') || s.includes('health')) return 'science';
   if (s.includes('english') || s.includes('literature') || s.includes('yoruba') || s.includes('igbo') || s.includes('hausa') || s.includes('french')) return 'language';

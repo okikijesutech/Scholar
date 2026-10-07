@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import confetti from 'canvas-confetti';
 import type { TabType } from './components/Navbar';
 import { Navbar } from './components/Navbar';
@@ -25,10 +25,13 @@ import { SAMPLE_LESSON_NOTES } from './data/sampleNotes';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<TabType>('generator');
-  const [notes, setNotes] = useState<LessonNote[]>([]);
-  const [activeNote, setActiveNote] = useState<LessonNote | null>(null);
-  const [profile, setProfile] = useState<TeacherProfile>(getTeacherProfile());
-  const [customSchemes, setCustomSchemes] = useState<SchemeOfWork[]>([]);
+  const [notes, setNotes] = useState<LessonNote[]>(() => getStoredNotes());
+  const [activeNote, setActiveNote] = useState<LessonNote | null>(() => {
+    const loadedNotes = getStoredNotes();
+    return loadedNotes.length > 0 ? loadedNotes[0] : null;
+  });
+  const [profile, setProfile] = useState<TeacherProfile>(() => getTeacherProfile());
+  const [customSchemes, setCustomSchemes] = useState<SchemeOfWork[]>(() => getCustomSchemes());
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -37,16 +40,6 @@ export function App() {
     subject?: string;
     term?: Term;
   }>({});
-
-  // Initialize data on mount
-  useEffect(() => {
-    const loadedNotes = getStoredNotes();
-    setNotes(loadedNotes);
-    if (loadedNotes.length > 0) {
-      setActiveNote(loadedNotes[0]);
-    }
-    setCustomSchemes(getCustomSchemes());
-  }, []);
 
   const handleOpenImportModal = (classLevel?: ClassLevel, subject?: string, term?: Term) => {
     setImportModalParams({ classLevel, subject, term });
@@ -60,7 +53,10 @@ export function App() {
       const generated = await generateLessonNote(params);
       
       // Save and set active
-      saveNote(generated);
+      const saveRes = saveNote(generated);
+      if (!saveRes.success) {
+        console.warn('Note generated but failed to persist to local storage:', saveRes.error);
+      }
       const updatedNotes = getStoredNotes();
       setNotes(updatedNotes);
       setActiveNote(generated);
@@ -72,7 +68,7 @@ export function App() {
           spread: 60,
           origin: { y: 0.7 }
         });
-      } catch (e) {
+      } catch {
         // Confetti fallback
       }
 
@@ -120,14 +116,23 @@ export function App() {
     });
   };
 
-  const handleSaveNote = (noteToSave: LessonNote) => {
-    saveNote(noteToSave);
+  const handleSaveNote = (noteToSave: LessonNote): boolean => {
+    const res = saveNote(noteToSave);
+    if (!res.success) {
+      alert(`Could not save lesson note: ${res.error || 'Storage quota exceeded or storage unavailable.'}`);
+      return false;
+    }
     setActiveNote(noteToSave);
     setNotes(getStoredNotes());
+    return true;
   };
 
   const handleDuplicateNote = (noteToDup: LessonNote) => {
     const duplicated = duplicateNote(noteToDup);
+    if (!duplicated) {
+      alert('Could not duplicate note: browser storage is full or unavailable.');
+      return;
+    }
     setNotes(getStoredNotes());
     setActiveNote(duplicated);
     setActiveTab('preview');
@@ -155,7 +160,7 @@ export function App() {
         spread: 70,
         origin: { y: 0.6 }
       });
-    } catch (e) {
+    } catch {
       // Confetti fallback
     }
     setActiveTab('scheme');
@@ -203,6 +208,7 @@ export function App() {
 
         {activeTab === 'preview' && (
           <LessonPreviewTab
+            key={activeNote?.id ?? 'empty'}
             note={activeNote}
             onSaveNote={handleSaveNote}
             onNewNote={handleNewNote}
@@ -248,7 +254,7 @@ export function App() {
             NaijaLessonPlan • Designed for Nigerian Primary & Secondary Educators
           </p>
           <p className="text-[11px] text-slate-400">
-            Compliant with NERDC Basic Education Curriculum (BEC) & Senior Secondary Education Curriculum (SSEC).
+            Aligned with the pedagogical structure of the NERDC Basic Education Curriculum (BEC) &amp; Senior Secondary Education Curriculum (SSEC). Independent educational planning tool; not officially affiliated with or endorsed by NERDC or SUBEB.
           </p>
         </div>
       </footer>

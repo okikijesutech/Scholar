@@ -6,6 +6,28 @@ const STORAGE_KEY_SEEDED = 'naija_notes_seeded_v1';
 const STORAGE_KEY_PROFILE = 'naija_teacher_profile_v1';
 const STORAGE_KEY_CUSTOM_SCHEMES = 'naija_custom_schemes_v1';
 
+export interface StorageResult {
+  success: boolean;
+  error?: string;
+}
+
+export function isValidLessonNote(item: unknown): item is LessonNote {
+  if (!item || typeof item !== 'object') return false;
+  const n = item as Record<string, unknown>;
+  return (
+    typeof n.id === 'string' &&
+    typeof n.topic === 'string' &&
+    typeof n.subject === 'string' &&
+    typeof n.classLevel === 'string' &&
+    typeof n.term === 'string' &&
+    typeof n.week === 'number' &&
+    Array.isArray(n.contentSections) &&
+    Array.isArray(n.classroomActivities) &&
+    Array.isArray(n.steps) &&
+    Array.isArray(n.evaluation)
+  );
+}
+
 export function getStoredNotes(): LessonNote[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_NOTES);
@@ -19,17 +41,23 @@ export function getStoredNotes(): LessonNote[] {
 
     if (!raw) return [];
 
-    const parsed: LessonNote[] = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
 
-    return parsed;
+    return parsed.filter((item): item is LessonNote => {
+      const valid = isValidLessonNote(item);
+      if (!valid) {
+        console.warn('Skipping corrupted or incompatible lesson note from storage:', item);
+      }
+      return valid;
+    });
   } catch (e) {
     console.error('Failed to parse notes from storage:', e);
     return [];
   }
 }
 
-export function saveNote(note: LessonNote): void {
+export function saveNote(note: LessonNote): StorageResult {
   try {
     const notes = getStoredNotes();
     const existingIndex = notes.findIndex(n => n.id === note.id);
@@ -39,8 +67,11 @@ export function saveNote(note: LessonNote): void {
       notes.unshift({ ...note, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     }
     localStorage.setItem(STORAGE_KEY_NOTES, JSON.stringify(notes));
+    return { success: true };
   } catch (e) {
     console.error('Failed to save note:', e);
+    const message = e instanceof Error ? e.message : 'Storage quota exceeded or storage unavailable';
+    return { success: false, error: message };
   }
 }
 
@@ -55,7 +86,7 @@ export function deleteNote(id: string): LessonNote[] {
   }
 }
 
-export function duplicateNote(note: LessonNote): LessonNote {
+export function duplicateNote(note: LessonNote): LessonNote | null {
   const newNote: LessonNote = {
     ...note,
     id: `note-${Date.now()}`,
@@ -63,7 +94,10 @@ export function duplicateNote(note: LessonNote): LessonNote {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
-  saveNote(newNote);
+  const res = saveNote(newNote);
+  if (!res.success) {
+    return null;
+  }
   return newNote;
 }
 

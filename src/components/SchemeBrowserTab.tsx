@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { ClassLevel, Term, SchemeOfWork } from '../types';
 import { NIGERIAN_CLASSES, SAMPLE_SCHEMES_OF_WORK, getSubjectsForClass } from '../data/curriculumData';
-import { BookOpen, Calendar, ArrowRight, Sparkles, AlertCircle, UploadCloud, Trash2, CheckCircle2 } from 'lucide-react';
+import { BookOpen, Calendar, ArrowRight, Sparkles, UploadCloud, Trash2, CheckCircle2 } from 'lucide-react';
 
 interface SchemeBrowserTabProps {
   onSelectWeekToGenerate: (classLevel: ClassLevel, subject: string, term: Term, week: number, topic: string, subTopic: string) => void;
@@ -16,18 +16,20 @@ export const SchemeBrowserTab: React.FC<SchemeBrowserTabProps> = ({
   onOpenImportModal,
   onDeleteCustomScheme
 }) => {
-  const [classLevel, setClassLevel] = useState<ClassLevel>('JSS 2');
+  const [classLevel, setClassLevel] = useState<ClassLevel>('Primary 4');
   const [term, setTerm] = useState<Term>('1st Term');
   const availableSubjects = getSubjectsForClass(classLevel);
-  const [subject, setSubject] = useState<string>('Christian Religious Studies');
+  const [subject, setSubject] = useState<string>('Mathematics');
+
+  const normalizeSubject = (str: string) => str.toLowerCase().replace(/\s*\([a-z0-9&/ ]+\)/g, '').trim();
 
   // Check custom schemes first, then preloaded NERDC schemes
   const customMatch = customSchemes.find(
-    s => s.classLevel === classLevel && s.term === term && s.subject.toLowerCase() === subject.toLowerCase()
+    s => s.classLevel === classLevel && s.term === term && normalizeSubject(s.subject) === normalizeSubject(subject)
   );
 
   const defaultMatch = SAMPLE_SCHEMES_OF_WORK.find(
-    s => s.classLevel === classLevel && s.term === term && s.subject.toLowerCase() === subject.toLowerCase()
+    s => s.classLevel === classLevel && s.term === term && normalizeSubject(s.subject) === normalizeSubject(subject)
   );
 
   const currentScheme = customMatch || defaultMatch;

@@ -6,7 +6,9 @@
 - **Junior Secondary Education:** Basic 7 to 9 (JSS 1–3)
 - **Senior Secondary Education:** Senior Secondary 1 to 3 (SSS 1–3)
 
-Compliant with the **NERDC (Nigerian Educational Research and Development Council)** curriculum standards and the official inspection format mandated by State Universal Basic Education Boards (**SUBEB**) and the Federal Ministry of Education.
+Aligned with the pedagogical structure of the **NERDC (Nigerian Educational Research and Development Council)** curriculum standards and the official inspection format mandated by State Universal Basic Education Boards (**SUBEB**) and the Federal Ministry of Education.
+
+> **Note:** *NaijaLessonPlan is an independent educational planning tool designed to support teachers. It is not officially affiliated with or endorsed by NERDC or SUBEB.*
 
 ---
 
@@ -38,27 +40,29 @@ Compliant with the **NERDC (Nigerian Educational Research and Development Counci
    - **Plain Text / WhatsApp Format:** One-click copy for WhatsApp staff groups or email.
 
 5. **Local Library & Persistence:**
-   - Automatically saves notes to browser storage.
+   - Automatically saves notes to browser storage with schema validation.
    - Search, filter by class/term, edit, duplicate for subsequent weeks, or delete.
 
 ---
 
-## 🚀 How to Run the Application
+## 🚀 Getting Started
 
-### Option 1: Quick Launcher (Double-Click)
-Simply double-click the **`start.bat`** file located inside the folder on your Desktop:
-```
-C:\Users\HP\Desktop\naija-lesson-planner\start.bat
-```
+### Prerequisites
+- Node.js (v20 or higher recommended)
+- npm or yarn
 
-### Option 2: Using the Terminal
-1. Open PowerShell or Command Prompt.
-2. Navigate to the project directory:
-   ```powershell
-   cd C:\Users\HP\Desktop\naija-lesson-planner
+### Installation & Development
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/okikijesutech/Scholar.git
+   cd Scholar
    ```
-3. Start the application:
-   ```powershell
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the Vite development server:
+   ```bash
    npm run dev
    ```
 4. Open your browser and navigate to:
