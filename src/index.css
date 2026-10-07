@@ -23,6 +23,12 @@
   .no-print {
     display: none !important;
   }
+
+  /* Prevent confetti canvas or visual effects from appearing on printed notes */
+  canvas {
+    display: none !important;
+    visibility: hidden !important;
+  }
   
   .print-container {
     width: 100% !important;

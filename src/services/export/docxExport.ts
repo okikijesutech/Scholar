@@ -29,9 +29,11 @@ export async function exportToDocx(note: LessonNote): Promise<void> {
 
       if (section.subPoints && section.subPoints.length > 0) {
         section.subPoints.forEach((pt) => {
+          // Remove manual '• ' so Word's native bullet does not double-render
+          const cleanPt = pt.replace(/^[•\-\*]\s*/, '');
           contentChildren.push(
             new Paragraph({
-              text: `• ${pt}`,
+              text: cleanPt,
               spacing: { after: 50 },
               bullet: { level: 0 }
             })
@@ -78,9 +80,10 @@ export async function exportToDocx(note: LessonNote): Promise<void> {
 
       if (act.items && act.items.length > 0) {
         act.items.forEach((item) => {
-          activitiesChildren.push(
+          const cleanItem = item.replace(/^[•\-\*]\s*/, '');
+          contentChildren.push(
             new Paragraph({
-              text: `• ${item}`,
+              text: cleanItem,
               spacing: { after: 50 },
               bullet: { level: 0 }
             })
@@ -89,6 +92,9 @@ export async function exportToDocx(note: LessonNote): Promise<void> {
       }
     });
   }
+
+  const schoolTitle = note.schoolName ? note.schoolName.toUpperCase() : 'NAME OF SCHOOL: _________________________________________';
+  const teacherDisplay = note.teacherName || '_________________________________';
 
   const doc = new Document({
     sections: [
@@ -106,7 +112,7 @@ export async function exportToDocx(note: LessonNote): Promise<void> {
         children: [
           // Header / Title
           new Paragraph({
-            text: note.schoolName.toUpperCase(),
+            text: schoolTitle,
             heading: HeadingLevel.TITLE,
             alignment: AlignmentType.CENTER,
             spacing: { after: 100 }
@@ -143,7 +149,7 @@ export async function exportToDocx(note: LessonNote): Promise<void> {
               new TableRow({
                 children: [
                   createHeaderCell('Teacher:'),
-                  createContentCell(note.teacherName),
+                  createContentCell(teacherDisplay),
                   createHeaderCell('Subject:'),
                   createContentCell(note.subject)
                 ]
@@ -230,13 +236,14 @@ export async function exportToDocx(note: LessonNote): Promise<void> {
             ],
             spacing: { after: 60 }
           }),
-          ...note.instructionalMaterials.map((mat) =>
-            new Paragraph({
-              text: `• ${mat}`,
+          ...note.instructionalMaterials.map((mat) => {
+            const cleanMat = mat.replace(/^[•\-\*]\s*/, '');
+            return new Paragraph({
+              text: cleanMat,
               spacing: { after: 50 },
               bullet: { level: 0 }
-            })
-          ),
+            });
+          }),
 
           // In-Depth Full Lesson Content
           ...contentChildren,
@@ -310,7 +317,7 @@ export async function exportToDocx(note: LessonNote): Promise<void> {
               ]
             : []),
 
-          // Supervision & Remarks
+          // Supervision & Remarks (Neutral pending sign-off)
           createSectionHeading('QUALITY ASSURANCE & VETTING'),
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
@@ -318,13 +325,13 @@ export async function exportToDocx(note: LessonNote): Promise<void> {
               new TableRow({
                 children: [
                   createHeaderCell('Teacher\'s Remarks:'),
-                  createCellWithSpan(note.teacherRemarks || 'Lesson successfully delivered.', 3, false)
+                  createCellWithSpan(note.teacherRemarks || '(To be completed after lesson presentation)', 3, false)
                 ]
               }),
               new TableRow({
                 children: [
                   createHeaderCell('HOD / VP Remarks:'),
-                  createCellWithSpan(note.hodRemarks || 'Seen, vetted, and approved.', 3, false)
+                  createCellWithSpan(note.hodRemarks || '(Awaiting inspection and sign-off)', 3, false)
                 ]
               }),
               new TableRow({

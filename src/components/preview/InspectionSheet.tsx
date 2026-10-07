@@ -6,7 +6,9 @@ import {
   Bookmark, 
   Users, 
   CheckCircle2, 
-  Quote 
+  Quote,
+  AlertTriangle,
+  AlertCircle
 } from 'lucide-react';
 
 interface InspectionSheetProps {
@@ -80,6 +82,29 @@ export const InspectionSheet: React.FC<InspectionSheetProps> = ({
 
   return (
     <div className="print-container bg-white rounded-3xl p-6 sm:p-10 border border-slate-300 shadow-xl space-y-7 text-slate-900">
+      {/* Offline Draft Transparency Banner */}
+      {note.isOfflineDraft && (
+        <div className="no-print p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 flex items-start gap-2.5 text-xs">
+          <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+          <div className="space-y-0.5">
+            <span className="font-bold text-amber-950">Offline NERDC Template Notice:</span>
+            <p className="text-amber-800 leading-relaxed">
+              This note was compiled using standard Nigerian curriculum templates. Please review, adapt worked examples, and personalize specific figures before classroom presentation or submission.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* AI Fallback/Error Banner */}
+      {note.generationError && (
+        <div className="no-print p-3.5 rounded-2xl bg-rose-50 border border-rose-300 text-rose-900 flex items-start gap-2.5 text-xs">
+          <AlertCircle className="w-4 h-4 text-rose-700 shrink-0 mt-0.5" />
+          <div>
+            <span className="font-bold text-rose-950">Gemini AI Notice:</span> {note.generationError}
+          </div>
+        </div>
+      )}
+
       {/* School Header Banner */}
       <div className="text-center pb-5 border-b-2 border-slate-900 space-y-1.5">
         <div className="flex items-center justify-center gap-2 text-emerald-800 text-xs font-extrabold uppercase tracking-widest">
@@ -91,12 +116,13 @@ export const InspectionSheet: React.FC<InspectionSheetProps> = ({
           <input
             type="text"
             value={note.schoolName}
+            placeholder="ENTER SCHOOL NAME (E.G. COMMAND DAY SECONDARY SCHOOL)"
             onChange={e => onUpdateNote({ ...note, schoolName: e.target.value })}
             className="text-xl sm:text-2xl font-black text-center w-full uppercase border-b border-dashed border-emerald-500 py-1"
           />
         ) : (
           <h1 className="text-xl sm:text-2xl font-black uppercase tracking-tight text-slate-950">
-            {note.schoolName}
+            {note.schoolName || 'NAME OF SCHOOL: _________________________________________'}
           </h1>
         )}
 
@@ -120,11 +146,12 @@ export const InspectionSheet: React.FC<InspectionSheetProps> = ({
                   <input
                     type="text"
                     value={note.teacherName}
+                    placeholder="Enter teacher name"
                     onChange={e => onUpdateNote({ ...note, teacherName: e.target.value })}
                     className="w-full border rounded px-2 py-0.5"
                   />
                 ) : (
-                  note.teacherName
+                  note.teacherName || '_________________________________'
                 )}
               </td>
               <td className="border border-slate-900 bg-slate-100 p-2 font-bold w-1/6">Subject:</td>
@@ -535,14 +562,38 @@ export const InspectionSheet: React.FC<InspectionSheetProps> = ({
             <tbody>
               <tr>
                 <td className="border border-slate-900 bg-slate-100 p-2 font-bold w-1/4">Teacher's Remarks:</td>
-                <td colSpan={3} className="border border-slate-900 p-2 italic text-slate-700">
-                  {note.teacherRemarks || 'Objectives were satisfactorily achieved by learners.'}
+                <td colSpan={3} className="border border-slate-900 p-2 text-slate-800">
+                  {isEditing ? (
+                    <textarea
+                      rows={2}
+                      value={note.teacherRemarks || ''}
+                      placeholder="Leave blank before teaching; enter reflection after classroom presentation."
+                      onChange={e => onUpdateNote({ ...note, teacherRemarks: e.target.value })}
+                      className="w-full border rounded p-1 text-xs"
+                    />
+                  ) : (
+                    <span className="italic text-slate-600">
+                      {note.teacherRemarks || '(To be completed by subject teacher after classroom presentation)'}
+                    </span>
+                  )}
                 </td>
               </tr>
               <tr>
                 <td className="border border-slate-900 bg-slate-100 p-2 font-bold">HOD / VP Remarks:</td>
-                <td colSpan={3} className="border border-slate-900 p-2 italic text-slate-700">
-                  {note.hodRemarks || 'Approved for classroom presentation.'}
+                <td colSpan={3} className="border border-slate-900 p-2 text-slate-800">
+                  {isEditing ? (
+                    <textarea
+                      rows={2}
+                      value={note.hodRemarks || ''}
+                      placeholder="Leave blank for supervisory vetting during weekly inspection."
+                      onChange={e => onUpdateNote({ ...note, hodRemarks: e.target.value })}
+                      className="w-full border rounded p-1 text-xs"
+                    />
+                  ) : (
+                    <span className="italic text-slate-600">
+                      {note.hodRemarks || '(Awaiting weekly inspection and vetting by HOD / VP Academics)'}
+                    </span>
+                  )}
                 </td>
               </tr>
               <tr className="h-20">
