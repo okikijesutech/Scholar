@@ -6,7 +6,7 @@ import { BookOpen, Calendar, ArrowRight, Sparkles, AlertCircle, UploadCloud, Tra
 interface SchemeBrowserTabProps {
   onSelectWeekToGenerate: (classLevel: ClassLevel, subject: string, term: Term, week: number, topic: string, subTopic: string) => void;
   customSchemes: SchemeOfWork[];
-  onOpenImportModal: () => void;
+  onOpenImportModal: (classLevel?: ClassLevel, subject?: string, term?: Term) => void;
   onDeleteCustomScheme: (id: string) => void;
 }
 
@@ -52,7 +52,7 @@ export const SchemeBrowserTab: React.FC<SchemeBrowserTabProps> = ({
 
         {/* Upload Action Button */}
         <button
-          onClick={onOpenImportModal}
+          onClick={() => onOpenImportModal(classLevel, subject, term)}
           className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-4 py-2.5 text-xs font-bold shadow-xs transition self-start md:self-auto cursor-pointer"
         >
           <UploadCloud className="w-4 h-4 text-emerald-300" />
@@ -208,7 +208,7 @@ export const SchemeBrowserTab: React.FC<SchemeBrowserTabProps> = ({
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button
-              onClick={onOpenImportModal}
+              onClick={() => onOpenImportModal(classLevel, subject, term)}
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white px-5 py-2.5 text-xs font-bold transition shadow-xs cursor-pointer"
             >
               <UploadCloud className="w-4 h-4" />

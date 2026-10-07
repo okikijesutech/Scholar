@@ -8,7 +8,7 @@ import { LessonPreviewTab } from './components/LessonPreviewTab';
 import { SavedNotesTab } from './components/SavedNotesTab';
 import { SettingsModal } from './components/SettingsModal';
 import { SchemeImportModal } from './components/SchemeImportModal';
-import type { LessonNote, TeacherProfile, ClassLevel, Term, SchemeOfWork } from './types';
+import type { LessonNote, TeacherProfile, ClassLevel, Term, SchemeOfWork, GenerationParams } from './types';
 import { generateLessonNote } from './services/aiGenerator';
 import { 
   getStoredNotes, 
@@ -32,6 +32,11 @@ export function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [importModalParams, setImportModalParams] = useState<{
+    classLevel?: ClassLevel;
+    subject?: string;
+    term?: Term;
+  }>({});
 
   // Initialize data on mount
   useEffect(() => {
@@ -43,21 +48,13 @@ export function App() {
     setCustomSchemes(getCustomSchemes());
   }, []);
 
+  const handleOpenImportModal = (classLevel?: ClassLevel, subject?: string, term?: Term) => {
+    setImportModalParams({ classLevel, subject, term });
+    setIsImportModalOpen(true);
+  };
+
   // Handle generating note
-  const handleGenerate = async (params: {
-    schoolName: string;
-    teacherName: string;
-    subject: string;
-    classLevel: ClassLevel;
-    term: Term;
-    week: number;
-    topic: string;
-    subTopic: string;
-    duration: string;
-    period: string;
-    customInstructions: string;
-    apiKey?: string;
-  }) => {
+  const handleGenerate = async (params: GenerationParams) => {
     try {
       setIsGenerating(true);
       const generated = await generateLessonNote(params);
@@ -68,7 +65,7 @@ export function App() {
       setNotes(updatedNotes);
       setActiveNote(generated);
       
-      // Trigger subtle celebration
+      // Trigger subtle celebration (canvas will be automatically hidden if user prints immediately)
       try {
         confetti({
           particleCount: 50,
@@ -174,7 +171,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900">
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -184,14 +181,14 @@ export function App() {
         hasActiveNote={!!activeNote}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeTab === 'generator' && (
           <GeneratorTab
             profile={profile}
             onGenerate={handleGenerate}
             isGenerating={isGenerating}
             onSelectSample={handleSelectSample}
-            onOpenImportModal={() => setIsImportModalOpen(true)}
+            onOpenImportModal={handleOpenImportModal}
           />
         )}
 
@@ -199,7 +196,7 @@ export function App() {
           <SchemeBrowserTab
             onSelectWeekToGenerate={handleSelectWeekToGenerate}
             customSchemes={customSchemes}
-            onOpenImportModal={() => setIsImportModalOpen(true)}
+            onOpenImportModal={handleOpenImportModal}
             onDeleteCustomScheme={handleDeleteCustomScheme}
           />
         )}
@@ -239,6 +236,9 @@ export function App() {
         profile={profile}
         onSchemeExtracted={handleSchemeExtracted}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        initialClassLevel={importModalParams.classLevel}
+        initialSubject={importModalParams.subject}
+        initialTerm={importModalParams.term}
       />
 
       {/* Footer (Hidden during printing) */}

@@ -56,6 +56,8 @@ export const SSS_SUBJECTS = [
   'Economics',
   'Civic Education',
   'Government',
+  'Christian Religious Studies',
+  'Islamic Religious Studies',
   'Agricultural Science',
   'Commerce',
   'Financial Accounting',
@@ -65,6 +67,9 @@ export const SSS_SUBJECTS = [
   'Computer Studies',
   'Technical Drawing',
   'Food and Nutrition',
+  'Yoruba Language',
+  'Igbo Language',
+  'Hausa Language'
 ];
 
 export const STANDARD_TEXTBOOKS: Record<string, string[]> = {
@@ -141,6 +146,29 @@ export const STANDARD_TEXTBOOKS: Record<string, string[]> = {
     'Round-Up Government for Senior Secondary Certificate by J.U. Anyaele',
     'Essential Government for Senior Secondary Schools by C.C. Dibie',
     'Comprehensive Government by K.A. Aina',
+  ],
+  'Christian Religious Studies': [
+    'Essential Christian Religious Studies for SSS by Edmond Okafor',
+    'Comprehensive Christian Religious Knowledge for Senior Secondary Schools',
+    'Senior Secondary Christian Religious Knowledge by P.E. Adebayo',
+    'The Holy Bible (Revised Standard Version / King James Version)'
+  ],
+  'Islamic Religious Studies': [
+    'Islamic Studies for Senior Secondary Schools by B. Aisha Lemu',
+    'Comprehensive Islamic Religious Studies for SSS',
+    'The Holy Qur\'an and Hadith Collections'
+  ],
+  'Yoruba Language': [
+    'Ede Yoruba Ode Oni fun Ile Eko Giga (SSS) by A. Babalola',
+    'Akitiyan fun Idanwo WASSCE ati NECO Yoruba'
+  ],
+  'Igbo Language': [
+    'Utoasusu Igbo Maka Senior Secondary Schools',
+    'Ogbalu Igbo Language Series for WASSCE/NECO'
+  ],
+  'Hausa Language': [
+    'Koyar da Harshen Hausa a Makarantun Sakandare',
+    'Harshen Hausa Don Manyan Makarantu (SSS)'
   ]
 };
 

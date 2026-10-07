@@ -1,27 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import type { ClassLevel, Term, TeacherProfile } from '../types';
+import type { ClassLevel, Term, TeacherProfile, GenerationParams } from '../types';
 import { NIGERIAN_CLASSES, getSubjectsForClass, SAMPLE_SCHEMES_OF_WORK } from '../data/curriculumData';
 import { Sparkles, BookOpen, Clock, Calendar, Check, Wand2, UploadCloud } from 'lucide-react';
 
 interface GeneratorTabProps {
   profile: TeacherProfile;
-  onGenerate: (params: {
-    schoolName: string;
-    teacherName: string;
-    subject: string;
-    classLevel: ClassLevel;
-    term: Term;
-    week: number;
-    topic: string;
-    subTopic: string;
-    duration: string;
-    period: string;
-    customInstructions: string;
-    apiKey?: string;
-  }) => Promise<void>;
+  onGenerate: (params: GenerationParams) => Promise<void>;
   isGenerating: boolean;
   onSelectSample: (id: string) => void;
-  onOpenImportModal?: () => void;
+  onOpenImportModal?: (classLevel?: ClassLevel, subject?: string, term?: Term) => void;
 }
 
 export const GeneratorTab: React.FC<GeneratorTabProps> = ({
@@ -48,7 +35,7 @@ export const GeneratorTab: React.FC<GeneratorTabProps> = ({
     if (!availableSubjects.includes(subject)) {
       setSubject(availableSubjects[0] || 'Mathematics');
     }
-  }, [classLevel]);
+  }, [classLevel, subject]);
 
   // Handle autofilling from preloaded NERDC schemes
   const handleAutofillFromScheme = () => {
@@ -141,7 +128,7 @@ export const GeneratorTab: React.FC<GeneratorTabProps> = ({
             {onOpenImportModal && (
               <button
                 type="button"
-                onClick={onOpenImportModal}
+                onClick={() => onOpenImportModal(classLevel, subject, term)}
                 className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-50 text-blue-800 hover:bg-blue-100 border border-blue-200 text-xs font-semibold transition cursor-pointer"
               >
                 <UploadCloud className="w-4 h-4 text-blue-600" />
