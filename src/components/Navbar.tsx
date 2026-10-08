@@ -1,5 +1,5 @@
 import React from 'react';
-import { BookOpen, Sparkles, FileText, FolderArchive, Settings, GraduationCap, PlusCircle, ShieldCheck } from 'lucide-react';
+import { BookOpen, Sparkles, FileText, FolderArchive, Settings, GraduationCap, PlusCircle, ShieldCheck, Cloud, CloudCheck } from 'lucide-react';
 
 export type TabType = 'generator' | 'scheme' | 'preview' | 'library';
 
@@ -11,6 +11,9 @@ interface NavbarProps {
   onNewNote: () => void;
   hasActiveNote: boolean;
   onOpenAdminCollation?: () => void;
+  onOpenEduFlowsSync?: () => void;
+  isEduFlowsConnected?: boolean;
+  schoolName?: string;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -20,7 +23,10 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSettings,
   onNewNote,
   hasActiveNote,
-  onOpenAdminCollation
+  onOpenAdminCollation,
+  onOpenEduFlowsSync,
+  isEduFlowsConnected,
+  schoolName
 }) => {
   return (
     <header className="no-print sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
@@ -128,6 +134,30 @@ export const Navbar: React.FC<NavbarProps> = ({
               <PlusCircle className="w-3.5 h-3.5 text-emerald-700" />
               <span>New Note</span>
             </button>
+
+            {onOpenEduFlowsSync && (
+              <button
+                onClick={onOpenEduFlowsSync}
+                title={isEduFlowsConnected ? `Connected to ${schoolName || 'EduFlows'}` : 'Connect to EduFlows School Portal'}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition border ${
+                  isEduFlowsConnected
+                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                    : 'bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100'
+                }`}
+              >
+                {isEduFlowsConnected ? (
+                  <>
+                    <CloudCheck className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="hidden lg:inline">{schoolName ? schoolName.slice(0, 16) : 'EduFlows Sync'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Cloud className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="hidden lg:inline">EduFlows Cloud</span>
+                  </>
+                )}
+              </button>
+            )}
 
             <button
               onClick={onOpenSettings}

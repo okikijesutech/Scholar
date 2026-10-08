@@ -10,7 +10,8 @@ import {
   PlusCircle, 
   Calendar,
   School,
-  HardDriveDownload
+  HardDriveDownload,
+  Cloud
 } from 'lucide-react';
 
 interface SavedNotesTabProps {
@@ -20,6 +21,8 @@ interface SavedNotesTabProps {
   onDeleteNote: (id: string) => void;
   onNewNote: () => void;
   onOpenBackup?: () => void;
+  onOpenEduFlowsSync?: () => void;
+  isEduFlowsConnected?: boolean;
 }
 
 export const SavedNotesTab: React.FC<SavedNotesTabProps> = ({
@@ -28,7 +31,9 @@ export const SavedNotesTab: React.FC<SavedNotesTabProps> = ({
   onDuplicateNote,
   onDeleteNote,
   onNewNote,
-  onOpenBackup
+  onOpenBackup,
+  onOpenEduFlowsSync,
+  isEduFlowsConnected
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClass, setFilterClass] = useState<string>('all');
@@ -69,6 +74,21 @@ export const SavedNotesTab: React.FC<SavedNotesTabProps> = ({
             >
               <HardDriveDownload className="w-4 h-4 text-emerald-700" />
               <span>Backup &amp; Restore</span>
+            </button>
+          )}
+
+          {onOpenEduFlowsSync && (
+            <button
+              onClick={onOpenEduFlowsSync}
+              title="Sync notes with EduFlows cloud"
+              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-bold transition shadow-xs cursor-pointer ${
+                isEduFlowsConnected
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                  : 'border-slate-300 hover:bg-slate-50 text-slate-700'
+              }`}
+            >
+              <Cloud className="w-4 h-4 text-emerald-700" />
+              <span>{isEduFlowsConnected ? 'EduFlows Sync' : 'Connect EduFlows'}</span>
             </button>
           )}
 

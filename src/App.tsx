@@ -10,6 +10,8 @@ import { SettingsModal } from './components/SettingsModal';
 import { SchemeImportModal } from './components/SchemeImportModal';
 import { AdminCollationModal } from './components/admin/AdminCollationModal';
 import { BackupModal } from './components/backup/BackupModal';
+import { EduFlowsSyncModal } from './components/modals/EduFlowsSyncModal';
+import { isEduFlowsConnected, getStoredUser } from './services/eduflowsClient';
 import type { LessonNote, TeacherProfile, ClassLevel, Term, SchemeOfWork, GenerationParams } from './types';
 import { generateLessonNote } from './services/aiGenerator';
 import { resolveActiveProviderConfig } from './services/ai/providers';
@@ -39,6 +41,7 @@ export function App() {
   const [isImportModalOpen, setIsImportModalOpen] = useState<boolean>(false);
   const [isAdminCollationOpen, setIsAdminCollationOpen] = useState<boolean>(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState<boolean>(false);
+  const [isEduFlowsSyncOpen, setIsEduFlowsSyncOpen] = useState<boolean>(false);
   const [verifiedVersion, setVerifiedVersion] = useState<number>(0);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [importModalParams, setImportModalParams] = useState<{
@@ -216,6 +219,9 @@ export function App() {
         onNewNote={handleNewNote}
         hasActiveNote={!!activeNote}
         onOpenAdminCollation={() => setIsAdminCollationOpen(true)}
+        onOpenEduFlowsSync={() => setIsEduFlowsSyncOpen(true)}
+        isEduFlowsConnected={isEduFlowsConnected()}
+        schoolName={getStoredUser()?.schoolName}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -271,6 +277,8 @@ export function App() {
             onDeleteNote={handleDeleteNote}
             onNewNote={handleNewNote}
             onOpenBackup={() => setIsBackupModalOpen(true)}
+            onOpenEduFlowsSync={() => setIsEduFlowsSyncOpen(true)}
+            isEduFlowsConnected={isEduFlowsConnected()}
           />
         )}
       </main>
@@ -306,6 +314,14 @@ export function App() {
         onDataRestored={handleDataRestored}
         currentNotesCount={notes.length}
         currentSchemesCount={customSchemes.length}
+      />
+
+      <EduFlowsSyncModal
+        isOpen={isEduFlowsSyncOpen}
+        onClose={() => setIsEduFlowsSyncOpen(false)}
+        onSyncComplete={() => {
+          setNotes(getStoredNotes());
+        }}
       />
 
       {/* Footer (Hidden during printing) */}
